@@ -535,30 +535,47 @@ async function syncSaleToServer(saleData) {
 
 // 7. السجلات والطباعة
 
+
 async function loadHistory() {
     const list = document.getElementById('history-list');
     if (!list) return;
     
-    // 1. جلب من الهاتف
-    let sales = await localforage.getItem('kodnaqi_sales') || [];
-    renderHistoryList(sales, list);
-
-    // 2. جلب من السيرفر
+    // 1. جلب الفواتير المحلية
+    let localSales = await localforage.getItem('kodnaqi_sales') || [];
+    
+    // 2. جلب الفواتير من السيرفر
     try {
         const res = await fetch(`${API_URL}/sales`);
         if(res.ok) {
             const serverSales = await res.json();
-            // دمج البيانات (تجنب التكرار بناءً على رقم الفاتورة)
-            let mergedSales = [...sales];
+            
+            // دمج الفواتير: نتجنب التكرار عن طريق مطابقة رقم الفاتورة
+            let mergedSales = [...localSales];
             serverSales.forEach(ss => {
-                if(!mergedSales.find(s => s.invoice_number === ss.invoice_number)) mergedSales.push(ss);
+                // إذا كانت الفاتورة موجودة محلياً (رقم INV)، نحدث بياناتها
+                let existingIndex = mergedSales.findIndex(s => s.invoice_number === ss.invoice_number);
+                if(existingIndex !== -1) {
+                    mergedSales[existingIndex] = { ...mergedSales[existingIndex], ...ss };
+                } else {
+                    // إذا لم تكن موجودة، نضيفها
+                    mergedSales.push(ss);
+                }
             });
+
+            // ترتيب الفواتير من الأحدث للأقدم
             mergedSales.sort((a,b) => new Date(b.sale_date) - new Date(a.sale_date));
+            
+            // حفظ النسخة المدمجة في الهاتف
             await localforage.setItem('kodnaqi_sales', mergedSales);
             renderHistoryList(mergedSales, list);
+        } else {
+            renderHistoryList(localSales, list);
         }
-    } catch(e) {}
+    } catch(e) { 
+        renderHistoryList(localSales, list);
+    }
 }
+
 
 function renderHistoryList(sales, list) {
     if (sales.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد فواتير سابقة.</p>'; return; }
@@ -637,11 +654,16 @@ if ('serviceWorker' in navigator) {
 
 // ==================== محرك المزامنة التلقائية ====================
 
+
 async function processOutbox() {
     if(!navigator.onLine) return; 
     
-    // 1. مزامنة الفواتير
     let outbox = await localforage.getItem('kodnaqi_outbox') || [];
+    if(outbox.length === 0) return;
+
+    let sales = await localforage.getItem('kodnaqi_sales') || [];
+    let outboxChanged = false;
+
     for (let i = 0; i < outbox.length; i++) {
         let sale = outbox[i];
         let sendData = { discount: sale.discount, paid_amount: sale.paid_amount, items: sale.items.map(item => ({ medicine_id: item.medicine_id, quantity: item.quantity, unit_price: item.unit_price })) };
@@ -649,16 +671,27 @@ async function processOutbox() {
         try {
             let res = await fetch(`${API_URL}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sendData) });
             if (res.ok) {
+                let serverData = await res.json();
+                
+                // تحديث الفاتورة المحلية بالرقم الجديد القادم من السيرفر
+                let localSaleIndex = sales.findIndex(s => s.id == sale.id);
+                if (localSaleIndex !== -1) {
+                    sales[localSaleIndex].invoice_number = serverData.invoice_number;
+                }
+                
                 outbox.splice(i, 1);
                 i--;
+                outboxChanged = true;
             } else { break; }
         } catch(e) { break; }
     }
-    await localforage.setItem('kodnaqi_outbox', outbox);
-
-    // 2. مزامنة الأدوية الجديدة
-    syncMedicinesToServer();
+    
+    if (outboxChanged) {
+        await localforage.setItem('kodnaqi_sales', sales);
+        await localforage.setItem('kodnaqi_outbox', outbox);
+    }
 }
+
 
 
 // تشغيل المزامنة عند عودة الإنترنت
