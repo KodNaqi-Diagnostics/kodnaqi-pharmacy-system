@@ -1,377 +1,48 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KodNaqi Pharmacy</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Tajawal', 'sans-serif'], english: ['Poppins', 'sans-serif'] },
-                    colors: { primary: '#0b4d3b', bg: '#f2ede4', card: '#ffffff', textMain: '#1a202c' }
-                }
-            }
-        }
-    </script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Tajawal', 'sans-serif'], english: ['Poppins', 'sans-serif'] }, colors: { primary: '#0b4d3b', bg: '#f2ede4', card: '#ffffff', textMain: '#1a202c' } } } }</script>
+    <script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <link rel="manifest" href="/manifest.json">
-    <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; }
-        .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); }
-        @media print {
-            body > * { display: none !important; }
-            #print-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; }
-            #app-modal { display: none !important; }
-            @page { margin: 5mm; }
-        }
-    </style>
+    <style>body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; } .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); } @media print { body > * { display: none !important; } #print-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; } #app-modal { display: none !important; } @page { margin: 5mm; } }</style>
 </head>
 <body class="text-textMain pb-24">
-
-    <!-- 1. شاشة البداية -->
-    <div id="splash-screen" class="fixed inset-0 bg-primary z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <img src="/logo-pharma.png" alt="Logo" class="w-48 h-48 object-contain mb-4 drop-shadow-2xl">
-        <h1 class="text-white text-3xl font-bold tracking-widest font-english mt-2">KodNaqi Pharmacy</h1>
-        <p class="text-white/70 text-sm mt-2">نظام إدارة الصيدلية</p>
-    </div>
-
-    <!-- 2. شاشة الدخول -->
+    <div id="splash-screen" class="fixed inset-0 bg-primary z-[100] flex flex-col items-center justify-center transition-opacity duration-500"><img src="/logo-pharma.png" class="w-48 h-48 object-contain mb-4"><h1 class="text-white text-3xl font-bold tracking-widest font-english mt-2">KodNaqi Pharmacy</h1></div>
     <div id="login-screen" class="fixed inset-0 bg-bg z-50 hidden flex-col justify-center p-6">
-        <div class="text-center mb-10">
-            <div class="w-24 h-24 bg-primary rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-xl shadow-primary/30">
-                <span class="font-english text-4xl font-bold text-white tracking-widest">KN</span>
-            </div>
-            <h2 class="text-2xl font-bold text-primary">مرحباً بك مجدداً</h2>
-            <p class="text-gray-500 text-sm mt-1">سجل الدخول لإدارة صيدليتك</p>
-        </div>
+        <div class="text-center mb-10"><div class="w-24 h-24 bg-primary rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-xl shadow-primary/30"><span class="font-english text-4xl font-bold text-white tracking-widest">KN</span></div><h2 class="text-2xl font-bold text-primary">مرحباً بك مجدداً</h2></div>
         <div class="bg-card p-6 rounded-3xl premium-shadow">
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">اسم المستخدم</label>
-                <input type="text" id="login-user" value="admin" class="w-full bg-bg border-0 rounded-xl p-3 focus:ring-2 focus:ring-primary outline-none">
-            </div>
-            <div class="mb-6">
-                <label class="block text-sm font-bold text-gray-700 mb-2">كلمة المرور</label>
-                <input type="password" id="login-pass" value="123456" class="w-full bg-bg border-0 rounded-xl p-3 focus:ring-2 focus:ring-primary outline-none" dir="ltr">
-            </div>
-            <button onclick="handleLogin()" class="w-full bg-primary hover:bg-[#073629] text-white py-3.5 rounded-xl font-bold text-lg transition-all shadow-lg shadow-primary/30">تسجيل الدخول</button>
+            <div class="mb-4"><label class="block text-sm font-bold text-gray-700 mb-2">اسم المستخدم</label><input type="text" id="login-user" placeholder="admin" class="w-full bg-bg border-0 rounded-xl p-3 focus:ring-2 focus:ring-primary outline-none"></div>
+            <div class="mb-6"><label class="block text-sm font-bold text-gray-700 mb-2">كلمة المرور</label><input type="password" id="login-pass" placeholder="••••••••" class="w-full bg-bg border-0 rounded-xl p-3 focus:ring-2 focus:ring-primary outline-none" dir="ltr"></div>
+            <button onclick="handleLogin()" class="w-full bg-primary hover:bg-[#073629] text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-primary/30">تسجيل الدخول</button>
         </div>
     </div>
-
-    <!-- 3. التطبيق الأساسي -->
     <div id="app-content" class="hidden">
         <header class="bg-primary text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center rounded-b-3xl mb-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 overflow-hidden shadow-sm border border-white/20">
-                    <img src="/icon-pharma.png" alt="Logo" class="w-full h-full object-contain">
-                </div>
-                <h1 id="pharmacy-name" class="text-xl font-bold">جاري التحميل...</h1>
-            </div>
-            <span id="current-tab-title" class="text-xs bg-white/20 px-3 py-1.5 rounded-full font-medium">الكاشير</span>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm border border-white/20"><img src="/icon-pharma.png" class="w-full h-full object-contain"></div><h1 id="pharmacy-name" class="text-xl font-bold">جاري التحميل...</h1></div>
+            <span id="current-tab-title" class="text-xs bg-white/20 px-3 py-1.5 rounded-full font-medium">الرئيسية</span>
         </header>
-
         <main class="p-4 max-w-4xl mx-auto">
-            <!-- قسم الكاشير -->
-            
-            <!-- قسم لوحة التحكم (الرئيسية) -->
-            <div id="view-dashboard" class="hidden space-y-6">
-                <h2 class="text-xl font-bold text-primary mb-2 px-2">نظرة عامة</h2>
-                
-                <!-- بطاقات الإحصائيات -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-card p-4 rounded-3xl premium-shadow border-0 flex flex-col items-center justify-center text-center">
-                        <span class="text-gray-500 text-xs font-bold mb-1">مبيعات اليوم</span>
-                        <span id="stat-revenue" class="text-2xl font-bold text-primary">0 SDG</span>
-                        <span id="stat-count" class="text-[10px] text-gray-400 mt-1">0 فاتورة</span>
-                    </div>
-                    <div class="bg-card p-4 rounded-3xl premium-shadow border-0 flex flex-col items-center justify-center text-center">
-                        <span class="text-gray-500 text-xs font-bold mb-1">أرباح اليوم (تقديري)</span>
-                        <span id="stat-profit" class="text-2xl font-bold text-blue-600">0 SDG</span>
-                        <span class="text-[10px] text-gray-400 mt-1">سعر البيع - التكلفة</span>
-                    </div>
-                </div>
-
-                <!-- تنبيهات المخزون -->
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0">
-                    <h3 class="font-bold text-red-600 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                        أدوية أوشكت على النفاذ (أقل من 10)
-                    </h3>
-                    <div id="low-stock-list" class="space-y-2 text-sm">
-                        <p class="text-gray-500">لا توجد تنبيهات.</p>
-                    </div>
-                </div>
-
-                <!-- تنبيهات الصلاحية -->
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0 mt-4">
-                    <h3 class="font-bold text-orange-500 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        أدوية قاربت على الانتهاء (أقل من 30 يوم)
-                    </h3>
-                    <div id="expiry-alerts-list" class="space-y-2 text-sm">
-                        <p class="text-gray-500 text-xs">لا توجد تنبيهات.</p>
-                    </div>
-                </div>
-
-                <!-- أدوية منتهية الصلاحية -->
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0 mt-4" id="expired-container" style="display:none;">
-                    <h3 class="font-bold text-red-600 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        أدوية منتهية الصلاحية (يجب سحبها فوراً)
-                    </h3>
-                    <div id="expired-list" class="space-y-2 text-sm"></div>
-                </div>
-    
-            </div>
-    
-            <div id="view-pos" class="space-y-6">
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0 mb-4">
-                    <h2 class="text-lg font-bold mb-4 text-primary">إضافة دواء للفاتورة</h2>
-                    <div class="flex gap-2 mb-4">
-                        <div class="relative flex-1">
-                            <input type="text" id="pos-search" onkeyup="filterMedicines()" placeholder="ابحث بالاسم التجاري أو العلمي..." class="w-full bg-bg border-0 rounded-xl p-3 pl-10 focus:ring-2 focus:ring-primary outline-none text-sm">
-                            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        </div>
-                        <button onclick="startScanner()" class="bg-primary hover:bg-[#073629] text-white px-5 rounded-xl font-bold transition flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        </button>
-                    </div>
-                    <div id="reader" class="w-full hidden rounded-xl overflow-hidden border-2 border-primary mb-2"></div>
-                    <button onclick="stopScanner()" id="stop-btn" class="hidden w-full text-red-600 text-sm font-bold bg-red-50 py-2 rounded-lg">إيقاف الكاميرا</button>
-                </div>
-
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-2 border-primary">
-                    <h2 class="text-lg font-bold mb-4 text-primary flex items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        الفاتورة الحالية
-                    </h2>
-                    <div id="cart-items" class="space-y-2 mb-4"><p class="text-gray-400 text-sm text-center py-4">الفاتورة فارغة.</p></div>
-                    <div class="border-t border-gray-200 pt-4 flex justify-between items-center text-lg font-bold">
-                        <span>الإجمالي:</span>
-                        <span id="cart-total" class="text-primary">0 SDG</span>
-                    </div>
-                    <button onclick="checkout()" class="w-full mt-4 bg-primary hover:bg-[#073629] text-white py-3.5 rounded-xl font-bold text-lg transition shadow-lg shadow-primary/30">💵 إتمام الدفع</button>
-                </div>
-
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0">
-                    <h2 class="text-lg font-bold mb-4 text-primary">الأدوية المتوفرة</h2>
-                    <div id="medicines-list" class="space-y-2"><p class="text-gray-500 text-center py-4">جاري تحميل الأدوية...</p></div>
-                </div>
-            </div>
-
-            <!-- قسم المخزون -->
-            <div id="view-inventory" class="hidden space-y-6">
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0 mb-4">
-                    <h2 class="text-lg font-bold mb-4 text-primary flex items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        إضافة دواء جديد
-                    </h2>
-                    <form id="add-medicine-form" class="space-y-4">
-                        <div class="grid grid-cols-1 gap-3">
-                            <input type="text" id="med-name" placeholder="الاسم التجاري (إجباري)" required class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-                            <input type="text" id="med-scientific" placeholder="الاسم العلمي (اختياري)" class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-                            <select id="med-category" class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none text-gray-700">
-                                <option value="" disabled selected>اختر تصنيف الدواء...</option>
-                                <option value="حبوب أو أقراص">حبوب أو أقراص (Tablets)</option>
-                                <option value="كبسولات">كبسولات (Capsules)</option>
-                                <option value="شراب">شراب (Syrup)</option>
-                                <option value="حقن">حقن (Injections)</option>
-                                <option value="محاليل وريدية">محاليل وريدية (IV Fluids)</option>
-                                <option value="مراهم / كريمات">مراهم / كريمات (Ointments)</option>
-                                <option value="قطرة">قطرة (Drops)</option>
-                                <option value="مستلزمات طبية">مستلزمات طبية (قطن، شاش، كانيولا...)</option>
-                                <option value="أخرى">أخرى (Other)</option>
-                            </select>
-                            <div class="grid grid-cols-2 gap-3">
-                                <input type="number" id="med-price" placeholder="سعر البيع (SDG)" required class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <input type="number" id="med-stock" placeholder="الكمية المتوفرة" required class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-            <input type="text" id="med-barcode" placeholder="الباركود" class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-            <input type="date" id="med-expiry" title="تاريخ انتهاء الصلاحية" class="bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none text-gray-500">
-        </div>
-                        </div>
-                        <button type="submit" class="w-full bg-primary hover:bg-[#073629] text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/30 transition">حفظ في المخزون</button>
-                    </form>
-                </div>
-
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0 mb-4 mt-6">
-                    <h2 class="text-lg font-bold mb-4 text-primary">الأدوية في المخزون</h2>
-                    <input type="text" id="inv-search" onkeyup="filterInventory()" placeholder="ابحث في المخزون..." class="w-full bg-bg border-0 rounded-xl p-3 mb-4 focus:ring-2 focus:ring-primary outline-none text-sm">
-                    <div id="inventory-list" class="space-y-2 max-h-96 overflow-y-auto">
-                        <p class="text-gray-500 text-center py-4">جاري التحميل...</p>
-                    </div>
-                </div>
-            </div>
-    
-
-            <!-- قسم السجلات -->
-            <div id="view-history" class="hidden space-y-6">
-                <div class="bg-card p-5 rounded-3xl premium-shadow border-0">
-                    <h2 class="text-lg font-bold mb-4 text-primary flex items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        سجل الفواتير
-                    </h2>
-                    <div id="history-list" class="space-y-2"><p class="text-gray-500 text-center py-4">جاري التحميل...</p></div>
-                </div>
-            </div>
-
-            <!-- قسم الإعدادات -->
-            <div id="view-settings" class="hidden space-y-6">
-                <h2 class="text-xl font-bold text-primary mb-2 px-2">الإعدادات</h2>
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden">
-                    <form id="settings-form" class="divide-y divide-gray-100">
-                        <div class="p-4 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-bg rounded-full flex items-center justify-center text-primary">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                                </div>
-                                <span class="font-bold text-sm text-gray-700">اسم الصيدلية</span>
-                            </div>
-                            <input type="text" id="set-name" required class="text-left bg-bg border-0 rounded-lg p-2 text-sm focus:ring-1 focus:ring-primary outline-none w-1/2 text-primary font-bold">
-                        </div>
-                        <div class="p-4 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-bg rounded-full flex items-center justify-center text-primary">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </div>
-                                <span class="font-bold text-sm text-gray-700">العملة</span>
-                            </div>
-                            <input type="text" id="set-currency" required class="text-left bg-bg border-0 rounded-lg p-2 text-sm focus:ring-1 focus:ring-primary outline-none w-1/2 text-primary font-bold">
-                        </div>
-                        <div class="p-4">
-                            <button type="submit" class="w-full bg-primary/10 hover:bg-primary/20 text-primary py-3 rounded-xl font-bold transition-all">تحديث الإعدادات</button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- النسخ الاحتياطي -->
-                
-                <!-- زر المزامنة اليدوية -->
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mb-4">
-                    <button onclick="forceSync()" class="w-full p-4 flex items-center justify-between text-primary hover:bg-blue-50 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <!-- أيقونة مزامنة واضحة -->
-                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                </svg>
-                            </div>
-                            <span class="font-bold text-sm">مزامنة البيانات المعلقة الآن</span>
-                        </div>
-                        <!-- سهم صغير في اليسار لتوضيح أنه زر -->
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                    </button>
-                </div>
-
-<h3 class="text-sm font-bold text-gray-500 px-2 mt-6">النسخ الاحتياطي والبيانات</h3>
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mb-4">
-                    <a href="/api/backup/database" download class="p-4 flex items-center justify-between border-b border-gray-100 hover:bg-gray-50 transition text-gray-700">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4zm0 5c0 2.21 3.582 4 8 4s8-1.79 8-4"></path></svg>
-                            </div>
-                            <span class="font-bold text-sm">تحميل قاعدة البيانات (SQLite)</span>
-                        </div>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </a>
-                    
-                    <a href="/api/backup/sales-csv" download class="p-4 flex items-center justify-between hover:bg-gray-50 transition text-gray-700">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            </div>
-                            <span class="font-bold text-sm">تصدير المبيعات (Excel / CSV)</span>
-                        </div>
-                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </a>
-                </div>
-
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4">
-                    <button onclick="handleLogout()" class="w-full p-4 flex items-center justify-between text-red-600 hover:bg-red-50 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                            </div>
-                            <span class="font-bold text-sm">تسجيل الخروج</span>
-                        </div>
-                    </button>
-                </div>
-            </div>
+            <div id="view-dashboard" class="hidden space-y-6"><h2 class="text-xl font-bold text-primary mb-2 px-2">نظرة عامة</h2><div class="grid grid-cols-2 gap-4"><div class="bg-card p-4 rounded-3xl premium-shadow flex flex-col items-center"><span class="text-gray-500 text-xs font-bold mb-1">مبيعات اليوم</span><span id="stat-revenue" class="text-2xl font-bold text-primary">0 SDG</span><span id="stat-count" class="text-[10px] text-gray-400 mt-1">0 فاتورة</span></div><div class="bg-card p-4 rounded-3xl premium-shadow flex flex-col items-center"><span class="text-gray-500 text-xs font-bold mb-1">أرباح اليوم</span><span id="stat-profit" class="text-2xl font-bold text-blue-600">0 SDG</span></div></div></div>
+            <div id="view-pos" class="hidden space-y-6"><div class="bg-card p-5 rounded-3xl premium-shadow mb-4"><h2 class="text-lg font-bold mb-4 text-primary">إضافة دواء للفاتورة</h2><div class="flex gap-2 mb-4"><input type="text" id="pos-search" onkeyup="filterMedicines()" placeholder="ابحث..." class="flex-1 bg-bg border-0 rounded-xl p-3 text-sm"><button onclick="startScanner()" class="bg-primary text-white px-5 rounded-xl font-bold">📷</button></div><div id="reader" class="w-full hidden rounded-xl border-2 border-primary mb-2"></div><button onclick="stopScanner()" id="stop-btn" class="hidden w-full text-red-600 font-bold bg-red-50 py-2 rounded-lg">إيقاف</button></div><div class="bg-card p-5 rounded-3xl premium-shadow border-2 border-primary"><h2 class="text-lg font-bold mb-4 text-primary">الفاتورة الحالية</h2><div id="cart-items" class="space-y-2 mb-4"><p class="text-gray-400 text-sm text-center">فارغة.</p></div><div class="border-t pt-4 flex justify-between font-bold"><span>الإجمالي:</span><span id="cart-total" class="text-primary">0 SDG</span></div><button onclick="checkout()" class="w-full mt-4 bg-primary text-white py-3.5 rounded-xl font-bold">💵 إتمام الدفع</button></div><div class="bg-card p-5 rounded-3xl premium-shadow"><h2 class="text-lg font-bold mb-4 text-primary">الأدوية المتوفرة</h2><div id="medicines-list" class="space-y-2"></div></div></div>
+            <div id="view-inventory" class="hidden space-y-6"><div class="bg-card p-5 rounded-3xl premium-shadow mb-4"><h2 class="text-lg font-bold mb-4 text-primary" id="inv-form-title">إضافة دواء جديد</h2><form id="add-medicine-form" class="space-y-3"><input type="hidden" id="med-id"><input type="text" id="med-name" placeholder="الاسم التجاري" required class="w-full bg-bg rounded-xl p-3 text-sm"><input type="text" id="med-scientific" placeholder="الاسم العلمي" class="w-full bg-bg rounded-xl p-3 text-sm"><select id="med-category" class="w-full bg-bg rounded-xl p-3 text-sm"><option value="">التصنيف...</option><option value="حبوب">حبوب</option><option value="كبسولات">كبسولات</option><option value="شراب">شراب</option><option value="حقن">حقن</option><option value="محاليل">محاليل</option><option value="مراهم">مراهم</option><option value="قطرة">قطرة</option></select><select id="med-supplier" class="w-full bg-bg rounded-xl p-3 text-sm"><option value="">المورد...</option></select><div class="grid grid-cols-2 gap-3"><input type="number" id="med-price" placeholder="سعر البيع" required class="bg-bg rounded-xl p-3 text-sm"><input type="number" id="med-cost" placeholder="التكلفة" class="bg-bg rounded-xl p-3 text-sm"></div><div class="grid grid-cols-2 gap-3"><input type="number" id="med-stock" placeholder="الكمية" required class="bg-bg rounded-xl p-3 text-sm"><input type="text" id="med-barcode" placeholder="الباركود" class="bg-bg rounded-xl p-3 text-sm"></div><input type="date" id="med-expiry" class="w-full bg-bg rounded-xl p-3 text-sm"><button type="submit" class="w-full bg-primary text-white py-3.5 rounded-xl font-bold">حفظ</button><button type="button" id="cancel-edit-btn" onclick="resetInvForm()" class="w-full bg-gray-200 text-gray-700 py-2 rounded-xl font-bold hidden">إلغاء التعديل</button></form></div><div class="bg-card p-5 rounded-3xl premium-shadow"><h2 class="text-lg font-bold mb-4 text-primary">قائمة الأدوية</h2><input type="text" id="inv-search" onkeyup="filterInventory()" placeholder="ابحث..." class="w-full bg-bg rounded-xl p-3 mb-4 text-sm"><div id="inventory-list" class="space-y-2 max-h-96 overflow-y-auto"></div></div></div>
+            <div id="view-history" class="hidden space-y-6"><div class="bg-card p-5 rounded-3xl premium-shadow"><h2 class="text-lg font-bold mb-4 text-primary">سجل الفواتير</h2><div id="history-list" class="space-y-2"></div></div></div>
+            <div id="view-suppliers" class="hidden space-y-6"><div class="bg-card p-5 rounded-3xl premium-shadow mb-4"><h2 class="text-lg font-bold mb-4 text-primary">إضافة مورد</h2><form id="add-supplier-form" class="flex gap-2"><input type="text" id="sup-name" placeholder="اسم المورد" required class="flex-1 bg-bg rounded-xl p-3 text-sm"><input type="text" id="sup-phone" placeholder="الهاتف" class="flex-1 bg-bg rounded-xl p-3 text-sm"><button type="submit" class="bg-primary text-white px-4 rounded-xl font-bold">حفظ</button></form></div><div class="bg-card p-5 rounded-3xl premium-shadow"><h2 class="text-lg font-bold mb-4 text-primary">الموردين</h2><div id="suppliers-list" class="space-y-2"></div></div></div>
+            <div id="view-settings" class="hidden space-y-6"><h2 class="text-xl font-bold text-primary mb-2 px-2">الإعدادات</h2><div class="bg-card rounded-3xl premium-shadow overflow-hidden"><form id="settings-form" class="divide-y divide-gray-100"><div class="p-4 flex justify-between"><span class="font-bold text-sm">اسم الصيدلية</span><input type="text" id="set-name" required class="text-left bg-bg rounded-lg p-2 text-sm w-1/2 text-primary font-bold"></div><div class="p-4 flex justify-between"><span class="font-bold text-sm">العملة</span><input type="text" id="set-currency" required class="text-left bg-bg rounded-lg p-2 text-sm w-1/2 text-primary font-bold"></div><div class="p-4"><button type="submit" class="w-full bg-primary/10 text-primary py-3 rounded-xl font-bold">تحديث</button></div></form></div><div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div></div>
         </main>
-
-        <!-- شريط التنقل السفلي -->
-        
-        <nav class="fixed bottom-0 w-full bg-white border-t border-gray-100 flex justify-around py-2 px-1 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] rounded-t-3xl pb-4">
-            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="flex flex-col items-center p-2 text-gray-400 hover:text-primary w-1/5 transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                <span class="text-[10px] font-bold">الرئيسية</span>
-            </button>
-            <button onclick="switchTab('pos')" id="btn-pos" class="flex flex-col items-center p-2 text-primary w-1/5 transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                <span class="text-[10px] font-bold">الكاشير</span>
-            </button>
-            <button onclick="switchTab('inventory')" id="btn-inventory" class="flex flex-col items-center p-2 text-gray-400 hover:text-primary w-1/5 transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                <span class="text-[10px] font-bold">المخزون</span>
-            </button>
-            <button onclick="switchTab('history')" id="btn-history" class="flex flex-col items-center p-2 text-gray-400 hover:text-primary w-1/5 transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                <span class="text-[10px] font-bold">السجلات</span>
-            </button>
-            <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center p-2 text-gray-400 hover:text-primary w-1/5 transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <span class="text-[10px] font-bold">الإعدادات</span>
-            </button>
-        
-            
-    </nav>
+        <nav class="fixed bottom-0 w-full bg-white border-t flex justify-around py-2 z-20 rounded-t-3xl pb-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="flex flex-col items-center p-2 text-gray-400 w-1/5"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg><span class="text-[10px] font-bold">الرئيسية</span></button>
+            <button onclick="switchTab('pos')" id="btn-pos" class="flex flex-col items-center p-2 text-gray-400 w-1/5"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الكاشير</span></button>
+            <button onclick="switchTab('inventory')" id="btn-inventory" class="flex flex-col items-center p-2 text-gray-400 w-1/5"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg><span class="text-[10px] font-bold">المخزون</span></button>
+            <button onclick="switchTab('history')" id="btn-history" class="flex flex-col items-center p-2 text-gray-400 w-1/5"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="text-[10px] font-bold">السجلات</span></button>
+            <button onclick="switchTab('suppliers')" id="btn-suppliers" class="flex flex-col items-center p-2 text-gray-400 w-1/5"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الموردين</span></button>
+        </nav>
     </div>
-
-    <!-- منطقة الطباعة -->
-    <div id="print-area" class="hidden bg-white text-black p-4 w-full max-w-sm mx-auto font-sans text-sm" dir="rtl">
-        <div class="text-center border-b-2 border-black border-dashed pb-2 mb-2">
-            <img src="/logo-pharma.png" alt="Logo" class="w-24 h-24 object-contain mx-auto mb-2 grayscale">
-            <h2 id="print-pharmacy-name" class="text-xl font-bold mb-1">اسم الصيدلية</h2>
-            <p class="text-xs" id="print-date">التاريخ</p>
-            <p class="text-xs font-bold mt-1">رقم الفاتورة: <span id="print-inv-num"></span></p>
-        </div>
-        <table class="w-full text-xs text-right mb-2">
-            <thead><tr class="border-b border-black"><th class="pb-1">الصنف</th><th class="pb-1 text-center">الكمية</th><th class="pb-1 text-left">السعر</th><th class="pb-1 text-left">الإجمالي</th></tr></thead>
-            <tbody id="print-items"></tbody>
-        </table>
-        <div class="border-t-2 border-black border-dashed pt-2 mb-4 space-y-1 text-sm">
-            <div class="flex justify-between font-bold"><span>الإجمالي:</span><span id="print-total">0 SDG</span></div>
-            <div class="flex justify-between"><span>المدفوع:</span><span id="print-paid">0 SDG</span></div>
-            <div class="flex justify-between"><span>الباقي:</span><span id="print-change">0 SDG</span></div>
-        </div>
-        <div class="flex flex-col items-center mt-6">
-            <svg id="print-barcode" class="w-full max-w-[200px]"></svg>
-            <p class="text-xs mt-1 font-mono" id="print-inv-text"></p>
-        </div>
-        <div class="text-center text-xs mt-4 border-t border-black border-dashed pt-2"><p>شكراً لزيارتكم!</p></div>
-    </div>
-
-    <!-- النوافذ المنبثقة -->
-    <div id="app-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 w-11/12 max-w-sm transform scale-95 transition-transform duration-300" id="modal-content">
-            <div id="modal-icon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 mb-4"><span class="text-3xl">✅</span></div>
-            <h3 id="modal-title" class="text-xl font-bold text-center text-gray-800 mb-2">عنوان</h3>
-            <p id="modal-message" class="text-center text-gray-600 mb-6 text-sm">رسالة</p>
-            <input type="number" id="modal-input" class="hidden w-full text-center text-2xl font-bold border-2 border-primary rounded-lg p-3 mb-6 focus:outline-none focus:ring-4 focus:ring-primary/20" dir="ltr">
-            <div class="flex gap-3">
-                <button id="modal-cancel" class="hidden flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-xl font-bold transition">إلغاء</button>
-                <button id="modal-confirm" class="flex-1 bg-primary hover:bg-[#073629] text-white py-3 rounded-xl font-bold transition shadow-lg shadow-primary/30">موافق</button>
-            </div>
-        </div>
-    </div>
-
+    <div id="print-area" class="hidden bg-white text-black p-4 w-full max-w-sm mx-auto font-sans text-sm" dir="rtl"><div class="text-center border-b-2 border-black border-dashed pb-2 mb-2"><h2 id="print-pharmacy-name" class="text-xl font-bold mb-1">اسم الصيدلية</h2><p class="text-xs" id="print-date">التاريخ</p><p class="text-xs font-bold mt-1">رقم الفاتورة: <span id="print-inv-num"></span></p></div><table class="w-full text-xs text-right mb-2"><thead><tr class="border-b border-black"><th class="pb-1">الصنف</th><th class="pb-1 text-center">الكمية</th><th class="pb-1 text-left">السعر</th><th class="pb-1 text-left">الإجمالي</th></tr></thead><tbody id="print-items"></tbody></table><div class="border-t-2 border-black border-dashed pt-2 mb-4 space-y-1 text-sm"><div class="flex justify-between font-bold"><span>الإجمالي:</span><span id="print-total"></span></div><div class="flex justify-between"><span>المدفوع:</span><span id="print-paid"></span></div><div class="flex justify-between"><span>الباقي:</span><span id="print-change"></span></div></div><div class="flex flex-col items-center mt-6"><svg id="print-barcode" class="w-full max-w-[200px]"></svg><p class="text-xs mt-1 font-mono" id="print-inv-text"></p></div><div class="text-center text-xs mt-4 border-t border-black border-dashed pt-2"><p>شكراً لزيارتكم!</p></div></div>
+    <div id="app-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50"><div class="bg-white rounded-2xl shadow-2xl p-6 w-11/12 max-w-sm transform scale-95 transition-transform" id="modal-content"><div id="modal-icon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"><span class="text-3xl text-primary">✅</span></div><h3 id="modal-title" class="text-xl font-bold text-center mb-2">عنوان</h3><p id="modal-message" class="text-center text-gray-600 mb-6 text-sm">رسالة</p><input type="number" id="modal-input" class="hidden w-full text-center text-2xl font-bold border-2 border-primary rounded-lg p-3 mb-6" dir="ltr"><div class="flex gap-3"><button id="modal-cancel" class="hidden flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold">إلغاء</button><button id="modal-confirm" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">موافق</button></div></div></div>
     <script src="/app.js"></script>
 </body>
 </html>
