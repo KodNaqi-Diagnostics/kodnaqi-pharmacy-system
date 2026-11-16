@@ -1,0 +1,23 @@
+
+{
+  "name": "KodNaqi Pharmacy",
+  "short_name": "KodNaqi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b4d3b",
+  "theme_color": "#0b4d3b",
+  "icons": [
+    {
+      "src": "/icon-pharma.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-pharma.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
