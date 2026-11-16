@@ -356,16 +356,19 @@ document.getElementById('add-medicine-form')?.addEventListener('submit', async (
     syncMedicinesToServer();
 });
 
+
 async function syncMedicinesToServer() {
     try {
         let medOutbox = await localforage.getItem('kodnaqi_med_outbox') || [];
         if(medOutbox.length === 0) return;
 
+        let localMeds = await localforage.getItem('kodnaqi_medicines') || [];
+        let outboxChanged = false;
+
         for (let i = 0; i < medOutbox.length; i++) {
             let med = medOutbox[i];
-            // إرسال للسيرفر (بدون الـ ID المحلي)
             let sendData = {...med};
-            delete sendData.id; 
+            delete sendData.id; // إرسال البيانات بدون المعرف المحلي
 
             const res = await fetch(`${API_URL}/medicines`, { 
                 method: 'POST', 
@@ -374,24 +377,32 @@ async function syncMedicinesToServer() {
             });
             
             if (res.ok) {
-                // إذا نجح، نحذفه من طابور الانتظار
+                const serverMed = await res.json(); // السيرفر يعيد الدواء مع الـ ID الحقيقي
+                
+                // تحديث ذاكرة الهاتف بالـ ID الحقيقي
+                let localIndex = localMeds.findIndex(m => m.id === med.id);
+                if (localIndex !== -1) {
+                    localMeds[localIndex].id = serverMed.id;
+                }
+                
                 medOutbox.splice(i, 1);
                 i--;
+                outboxChanged = true;
             } else {
-                break; // توقف إذا فشل الاتصال
+                break; 
             }
         }
-        await localforage.setItem('kodnaqi_med_outbox', medOutbox);
-        // جلب أحدث نسخة من السيرفر
-        const res = await fetch(`${API_URL}/medicines`);
-        if(res.ok) {
-            const serverMeds = await res.json();
-            await localforage.setItem('kodnaqi_medicines', serverMeds);
+        
+        if (outboxChanged) {
+            await localforage.setItem('kodnaqi_medicines', localMeds);
+            await localforage.setItem('kodnaqi_med_outbox', medOutbox);
+            console.log("✅ Medicines synced and IDs updated.");
         }
     } catch(err) {
         console.log("Sync paused: Server unreachable.");
     }
 }
+
 
 
 // 6. الكاشير
@@ -658,3 +669,12 @@ window.addEventListener('online', () => {
 
 // محاولة المزامنة كل 30 ثانية في الخلفية
 setInterval(processOutbox, 30000);
+
+async function forceSync() {
+    await showAlert("جاري المزامنة", "يتم إرسال البيانات المعلقة للسحابة...", "success");
+    await syncMedicinesToServer();
+    await processOutbox();
+    await loadMedicines();
+    await loadHistory();
+    await showAlert("تمت المزامنة", "تمت مزامنة جميع البيانات المعلقة بنجاح!", "success");
+}
