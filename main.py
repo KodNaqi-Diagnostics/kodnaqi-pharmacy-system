@@ -2,7 +2,7 @@
 import os
 import psycopg2
 from psycopg2.extras import DictCursor
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
@@ -14,10 +14,9 @@ from jose import JWTError, jwt
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL: raise Exception("DATABASE_URL missing!")
 
-# إعدادات الأمان
-SECRET_KEY = "kodnaqi_secret_super_key_2026_change_this_in_production"
+SECRET_KEY = "kodnaqi_secret_super_key_2026"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # أسبوع
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
@@ -37,7 +36,6 @@ def init_db():
             cur.execute("CREATE TABLE IF NOT EXISTS sales (id SERIAL PRIMARY KEY, invoice_number TEXT UNIQUE, total_amount REAL, discount REAL, paid_amount REAL, sale_date TEXT);")
             cur.execute("CREATE TABLE IF NOT EXISTS sale_items (id SERIAL PRIMARY KEY, sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE, medicine_id INTEGER, quantity INTEGER, unit_price REAL, total_price REAL);")
             
-            # إنشاء المدير الافتراضي
             cur.execute("SELECT COUNT(*) FROM users")
             if cur.fetchone()[0] == 0: 
                 cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", pwd_context.hash("admin"), "admin"))
@@ -46,14 +44,12 @@ def init_db():
             conn.commit()
 init_db()
 
-# --- Models ---
 class LoginIn(BaseModel):
     username: str
     password: str
 class RegisterIn(BaseModel):
     username: str
     password: str
-    role: str = "cashier"
 class MedicineIn(BaseModel):
     barcode: Optional[str] = None
     name: str
@@ -79,7 +75,6 @@ class SaleIn(BaseModel):
     paid_amount: float
     items: list[SaleItemIn]
 
-# --- Helper Functions ---
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -98,15 +93,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
                 user = cur.fetchone()
                 if user is None: raise credentials_exception
                 return dict(user)
-    except JWTError:
-        raise credentials_exception
+    except JWTError: raise credentials_exception
 
 def check_admin(user: dict = Depends(get_current_user)):
-    if user['role'] != 'admin':
-        raise HTTPException(status_code=403, detail="هذه العملية تتطلب صلاحيات مدير")
+    if user['role'] != 'admin': raise HTTPException(status_code=403, detail="تتطلب صلاحيات مدير")
     return user
 
-# --- Auth Endpoints ---
 @app.post("/api/login")
 def login(data: LoginIn):
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -115,21 +107,50 @@ def login(data: LoginIn):
             user = cur.fetchone()
             if user and pwd_context.verify(data.password, user['password_hash']):
                 token = create_access_token(data={"sub": user['username'], "role": user['role']})
-                return {"access_token": token, "token_type": "bearer", "role": user['role']}
+                return {"access_token": token, "role": user['role']}
             raise HTTPException(401, "بيانات الدخول غير صحيحة")
 
 @app.post("/api/register")
-def register(data: RegisterIn, admin_user: dict = Depends(check_admin)): # فقط المدير يمكنه إضافة موظفين
+def register(data: RegisterIn): # التسجيل متاح للجميع، ولكن يتم إنشاؤه كـ "كاشير" افتراضياً
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
             if cur.fetchone(): raise HTTPException(400, "اسم المستخدم موجود بالفعل")
             hashed_pw = pwd_context.hash(data.password)
-            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s) RETURNING id", (data.username, hashed_pw, data.role))
+            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'cashier') RETURNING id", (data.username, hashed_pw))
             conn.commit()
             return {"status": "success", "message": "تم إنشاء الحساب بنجاح"}
 
-# --- Protected Endpoints ---
+@app.get("/api/users")
+def get_users(admin_user: dict = Depends(check_admin)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT id, username, role FROM users ORDER BY id")
+            return [dict(r) for r in cur.fetchall()]
+
+@app.post("/api/users")
+def add_user(data: dict, admin_user: dict = Depends(check_admin)):
+    username = data.get("username")
+    password = data.get("password")
+    role = data.get("role", "cashier")
+    if not username or not password: raise HTTPException(400, "بيانات ناقصة")
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            if cur.fetchone(): raise HTTPException(400, "اسم المستخدم موجود")
+            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", (username, pwd_context.hash(password), role))
+            conn.commit()
+            return {"status": "success"}
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, admin_user: dict = Depends(check_admin)):
+    if user_id == admin_user['id']: raise HTTPException(400, "لا يمكنك حذف حسابك الحالي")
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
+            conn.commit()
+            return {"status": "deleted"}
+
 @app.get("/api/suppliers")
 def get_suppliers(user: dict = Depends(get_current_user)):
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -186,7 +207,7 @@ def get_by_barcode(barcode: str, user: dict = Depends(get_current_user)):
             return dict(row)
 
 @app.post("/api/sales")
-def create_sale(sale: SaleIn, user: dict = Depends(get_current_user)): # الكاشير والمدير يمكنهما البيع
+def create_sale(sale: SaleIn, user: dict = Depends(get_current_user)):
     now = now_iso()
     total_amount = sum(item.quantity * item.unit_price for item in sale.items) - sale.discount
     invoice_number = f"INV-{int(datetime.now().timestamp())}"
@@ -235,7 +256,7 @@ def update_settings(data: SettingsIn, admin_user: dict = Depends(check_admin)):
             return dict(cur.fetchone())
 
 @app.get("/api/stats")
-def get_stats(admin_user: dict = Depends(check_admin)): # الإحصائيات للمدير فقط
+def get_stats(admin_user: dict = Depends(check_admin)):
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")

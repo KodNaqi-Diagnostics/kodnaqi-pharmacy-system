@@ -1,181 +1,137 @@
 const API_URL = "/api"; let cart = []; let html5QrCode = null;
 function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
-
-// Auth Helper
-function getAuthHeaders() {
-    const token = localStorage.getItem('kodnaqi_token');
-    return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-}
+function getAuthHeaders() { const token = localStorage.getItem('kodnaqi_token'); return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
 
 async function apiFetch(url, options = {}) {
     options.headers = { ...getAuthHeaders(), ...options.headers };
     const res = await fetch(url, options);
     if (res.status === 401 || res.status === 403) {
-        // انتهت الجلسة أو لا يوجد صلاحية
-        if(res.status === 401) {
-            localStorage.removeItem('kodnaqi_token');
-            localStorage.removeItem('kodnaqi_role');
-            window.location.reload();
-        } else {
-            const data = await res.json();
-            showAlert("ممنوع", data.detail || "ليس لديك صلاحية لهذا الإجراء", "error");
-            throw new Error("Forbidden");
-        }
+        if(res.status === 401) { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
+        else { const data = await res.json(); showAlert("ممنوع", data.detail || "ليس لديك صلاحية", "error"); throw new Error("Forbidden"); }
     }
     return res;
 }
 
-
-// 1. Init & Auth
-window.addEventListener('load', () => { setTimeout(() => { const splash = document.getElementById('splash-screen'); if (splash) { splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; if (localStorage.getItem('kodnaqi_auth') === 'true') { showApp(); } else { const login = document.getElementById('login-screen'); if(login) { login.classList.remove('hidden'); login.classList.add('flex'); } } }, 500); } }, 2000); });
-
 let isLoginMode = true;
-
 function toggleAuthMode() {
     isLoginMode = !isLoginMode;
-    const loginBox = document.getElementById('login-form-box');
-    const regBox = document.getElementById('register-form-box');
-    const title = document.getElementById('auth-title');
-    const subtitle = document.getElementById('auth-subtitle');
-    const toggleBtn = document.getElementById('toggle-auth-btn');
-
+    const loginBox = document.getElementById('login-form-box'); const regBox = document.getElementById('register-form-box');
+    const title = document.getElementById('auth-title'); const subtitle = document.getElementById('auth-subtitle'); const toggleBtn = document.getElementById('toggle-auth-btn');
     if (isLoginMode) {
-        loginBox.classList.remove('hidden');
-        regBox.classList.add('hidden');
-        title.innerText = "مرحباً بك مجدداً";
-        subtitle.innerText = "سجل الدخول لإدارة صيدليتك";
-        toggleBtn.innerText = "ليس لديك حساب؟ إنشاء حساب جديد";
+        loginBox.classList.remove('hidden'); regBox.classList.add('hidden');
+        title.innerText = "مرحباً بك مجدداً"; subtitle.innerText = "سجل الدخول لإدارة صيدليتك"; toggleBtn.innerText = "ليس لديك حساب؟ إنشاء حساب جديد";
     } else {
-        loginBox.classList.add('hidden');
-        regBox.classList.remove('hidden');
-        title.innerText = "حساب جديد";
-        subtitle.innerText = "أنشئ حسابك لإدارة صيدليتك";
-        toggleBtn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
+        loginBox.classList.add('hidden'); regBox.classList.remove('hidden');
+        title.innerText = "حساب جديد"; subtitle.innerText = "أنشئ حسابك لإدارة صيدليتك"; toggleBtn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
     }
 }
 
 async function handleRegister() {
-    const user = document.getElementById('reg-user').value;
-    const email = document.getElementById('reg-email').value;
-    const pass = document.getElementById('reg-pass').value;
-    const confirmPass = document.getElementById('reg-pass-confirm').value;
-
-    if(!user || !pass) return showAlert("تنبيه", "أدخل اسم المستخدم وكلمة المرور", "error");
+    const user = document.getElementById('reg-user').value; const pass = document.getElementById('reg-pass').value; const confirmPass = document.getElementById('reg-pass-confirm').value;
+    if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error");
     if(pass !== confirmPass) return showAlert("خطأ", "كلمتا المرور غير متطابقتين", "error");
-
     try {
-        const res = await apiFetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, email: email, password: pass })
-        });
+        const res = await fetch(`${API_URL}/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
         const data = await res.json();
-        
-        if (res.ok) {
-            await showAlert("تم بنجاح", "تم إنشاء الحساب، يمكنك الآن تسجيل الدخول.", "success");
-            toggleAuthMode(); // العودة لنموذج الدخول
-            document.getElementById('login-user').value = user; // تعبئة اسم المستخدم
-        } else {
-            showAlert("خطأ", data.detail || "حدث خطأ أثناء إنشاء الحساب", "error");
-        }
-    } catch (err) {
-        showAlert("خطأ", "تعذر الاتصال بالسيرفر", "error");
-    }
+        if (res.ok) { await showAlert("تم بنجاح", "تم إنشاء الحساب، يمكنك الآن تسجيل الدخول.", "success"); toggleAuthMode(); document.getElementById('login-user').value = user; } 
+        else { showAlert("خطأ", data.detail || "حدث خطأ", "error"); }
+    } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); }
 }
 
+window.addEventListener('load', () => { setTimeout(() => { const splash = document.getElementById('splash-screen'); if (splash) { splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; if (localStorage.getItem('kodnaqi_token')) { showApp(); } else { const login = document.getElementById('login-screen'); if(login) { login.classList.remove('hidden'); login.classList.add('flex'); } } }, 500); } }, 2000); });
 
 async function handleLogin() { 
-    const user = document.getElementById('login-user').value; 
-    const pass = document.getElementById('login-pass').value; 
-    if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error"); 
+    const user = document.getElementById('login-user').value; const pass = document.getElementById('login-pass').value; if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error"); 
     try { 
         const res = await fetch(`${API_URL}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) }); 
         const data = await res.json(); 
         if (res.ok) { 
-            localStorage.setItem('kodnaqi_token', data.access_token); 
-            localStorage.setItem('kodnaqi_role', data.role); 
-            document.getElementById('login-screen').classList.add('hidden'); 
-            document.getElementById('login-screen').classList.remove('flex'); 
+            localStorage.setItem('kodnaqi_token', data.access_token); localStorage.setItem('kodnaqi_role', data.role); 
+            document.getElementById('login-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('flex'); 
             showApp(); 
-        } else { 
-            showAlert("خطأ", data.detail || "بيانات غير صحيحة", "error"); 
-        } 
-    } catch (err) { 
-        showAlert("خطأ", "تعذر الاتصال", "error"); 
-    } 
+        } else { showAlert("خطأ", data.detail || "بيانات غير صحيحة", "error"); } 
+    } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } 
 }
 
 function handleLogout() { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
 
 function showApp() { 
-    const app = document.getElementById('app-content'); 
-    if(app) app.classList.remove('hidden'); 
-    loadSettings(); 
-    
+    const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); 
     const role = localStorage.getItem('kodnaqi_role');
-    const adminTabs = ['btn-dashboard', 'btn-inventory', 'btn-suppliers', 'btn-settings'];
-    
-    // إخفاء التبويبات إذا كان كاشير
+    const adminTabs = ['btn-dashboard', 'btn-inventory', 'btn-suppliers', 'btn-settings', 'btn-users'];
     if (role !== 'admin') {
-        adminTabs.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-        });
-        // جعل الكاشير يبدأ من شاشة الكاشير
+        adminTabs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
         switchTab('pos');
     } else {
-        adminTabs.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.style.display = 'flex';
-        });
+        adminTabs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; });
         switchTab('dashboard');
     }
 }
 
+function switchTab(tabId) { 
+    ['dashboard', 'pos', 'inventory', 'history', 'suppliers', 'users', 'settings'].forEach(id => { 
+        const view = document.getElementById(`view-${id}`); const btn = document.getElementById(`btn-${id}`); 
+        if(view) view.classList.add('hidden'); 
+        if(btn) btn.className = "flex flex-col items-center p-2 text-gray-400 hover:text-primary min-w-[60px] transition-all"; 
+    }); 
+    const activeView = document.getElementById(`view-${tabId}`); const activeBtn = document.getElementById(`btn-${tabId}`); 
+    if(activeView) activeView.classList.remove('hidden'); 
+    if(activeBtn) activeBtn.className = "flex flex-col items-center p-2 text-primary min-w-[60px] transition-all"; 
+    const titles = { dashboard: 'الرئيسية', pos: 'الكاشير', inventory: 'المخزون', history: 'السجلات', suppliers: 'الموردين', users: 'الموظفين', settings: 'الإعدادات' }; 
+    const titleEl = document.getElementById('current-tab-title'); if(titleEl) titleEl.innerText = titles[tabId]; 
+    if (tabId === 'dashboard') loadDashboard(); 
+    if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); } 
+    if (tabId === 'history') loadHistory(); 
+    if (tabId === 'suppliers') loadSuppliersList(); 
+    if (tabId === 'users') loadUsers(); 
+    if (tabId === 'settings') fetchSettingsForForm(); 
+}
 
-// 2. Tabs & Modals
-function switchTab(tabId) { ['dashboard', 'pos', 'inventory', 'history', 'suppliers', 'settings'].forEach(id => { const view = document.getElementById(`view-${id}`); const btn = document.getElementById(`btn-${id}`); if(view) view.classList.add('hidden'); if(btn) btn.className = "flex flex-col items-center p-2 text-gray-400 hover:text-primary w-1/5 transition-all"; }); const activeView = document.getElementById(`view-${tabId}`); const activeBtn = document.getElementById(`btn-${tabId}`); if(activeView) activeView.classList.remove('hidden'); if(activeBtn) activeBtn.className = "flex flex-col items-center p-2 text-primary w-1/5 transition-all"; const titles = { dashboard: 'الرئيسية', pos: 'الكاشير', inventory: 'المخزون', history: 'السجلات', suppliers: 'الموردين', settings: 'الإعدادات' }; const titleEl = document.getElementById('current-tab-title'); if(titleEl) titleEl.innerText = titles[tabId]; if (tabId === 'dashboard') loadDashboard(); if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); } if (tabId === 'history') loadHistory(); if (tabId === 'suppliers') loadSuppliersList(); if (tabId === 'settings') fetchSettingsForForm(); }
 function showAlert(title, message, type = 'success') { return new Promise((resolve) => { const modal = document.getElementById('app-modal'); const content = document.getElementById('modal-content'); const iconDiv = document.getElementById('modal-icon'); const input = document.getElementById('modal-input'); const cancelBtn = document.getElementById('modal-cancel'); const confirmBtn = document.getElementById('modal-confirm'); if(!modal) return resolve(true); input.classList.add('hidden'); cancelBtn.classList.add('hidden'); confirmBtn.innerText = 'حسناً'; if (type === 'error') { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4"; iconDiv.innerHTML = '<span class="text-3xl">❌</span>'; confirmBtn.className = "flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200"; } else { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"; iconDiv.innerHTML = '<span class="text-3xl text-primary">✅</span>'; confirmBtn.className = "flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30"; } document.getElementById('modal-title').innerText = title; document.getElementById('modal-message').innerHTML = message; modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => content.classList.remove('scale-95'), 10); confirmBtn.onclick = () => { content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200); resolve(true); }; }); }
 function showPrompt(title, message, defaultValue) { return new Promise((resolve) => { const modal = document.getElementById('app-modal'); const content = document.getElementById('modal-content'); const iconDiv = document.getElementById('modal-icon'); const input = document.getElementById('modal-input'); const cancelBtn = document.getElementById('modal-cancel'); const confirmBtn = document.getElementById('modal-confirm'); if(!modal) return resolve(null); iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4"; iconDiv.innerHTML = '<span class="text-3xl">💵</span>'; confirmBtn.className = "flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30"; confirmBtn.innerText = 'تأكيد الدفع'; document.getElementById('modal-title').innerText = title; document.getElementById('modal-message').innerText = message; input.classList.remove('hidden'); input.value = defaultValue; input.focus(); cancelBtn.classList.remove('hidden'); modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => content.classList.remove('scale-95'), 10); confirmBtn.onclick = () => { const val = input.value; close(); resolve(val); }; cancelBtn.onclick = () => { close(); resolve(null); }; function close() { content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200); } }); }
 
-// 3. Settings & Dashboard
+// Users
+async function loadUsers() { try { const res = await apiFetch(`${API_URL}/users`); const users = await res.json(); const list = document.getElementById('users-list'); list.innerHTML = users.map(u => `<div class="flex justify-between items-center p-3 border-b border-gray-100"><div><p class="font-bold text-primary">${u.username}</p><p class="text-xs text-gray-500">${u.role === 'admin' ? 'مدير' : 'كاشير'}</p></div>${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="bg-red-50 text-red-600 p-2 rounded-lg">🗑️</button>` : ''}</div>`).join(''); } catch (err) { console.error(err); } }
+document.getElementById('add-user-form')?.addEventListener('submit', async (e) => { e.preventDefault(); const username = document.getElementById('new-username').value; const password = document.getElementById('new-password').value; const role = document.getElementById('new-role').value; try { const res = await apiFetch(`${API_URL}/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }) }); if(res.ok) { await showAlert("تم", "تم إضافة الموظف.", "success"); document.getElementById('add-user-form').reset(); loadUsers(); } } catch (err) {} });
+async function deleteUser(id) { if(!confirm("حذف هذا الموظف؟")) return; try { const res = await apiFetch(`${API_URL}/users/${id}`, { method: 'DELETE' }); if(res.ok) { loadUsers(); showAlert("تم", "تم الحذف.", "success"); } } catch (err) {} }
+
+// Settings & Dashboard
 async function loadSettings() { try { const res = await apiFetch(`${API_URL}/settings`); const data = await res.json(); const nameEl = document.getElementById('pharmacy-name'); if(nameEl) nameEl.innerText = data.pharmacy_name; await localforage.setItem('kodnaqi_settings', data); } catch (err) { const localData = await localforage.getItem('kodnaqi_settings'); if(localData) { document.getElementById('pharmacy-name').innerText = localData.pharmacy_name; } } }
 async function fetchSettingsForForm() { try { const res = await apiFetch(`${API_URL}/settings`); const data = await res.json(); if(document.getElementById('set-name')) document.getElementById('set-name').value = data.pharmacy_name; if(document.getElementById('set-currency')) document.getElementById('set-currency').value = data.currency; } catch (err) { console.error(err); } }
 document.getElementById('settings-form')?.addEventListener('submit', async (e) => { e.preventDefault(); try { const res = await apiFetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pharmacy_name: document.getElementById('set-name').value, currency: document.getElementById('set-currency').value }) }); if (res.ok) { await showAlert("تم بنجاح", "تم التحديث.", "success"); loadSettings(); } } catch (err) { showAlert("خطأ", "تعذر التحديث", "error"); } });
 async function loadDashboard() { try { const res = await apiFetch(`${API_URL}/stats`); const data = await res.json(); document.getElementById('stat-revenue').innerText = `${formatCurrency(data.today_revenue)} SDG`; document.getElementById('stat-count').innerText = `${data.today_sales_count} فاتورة`; document.getElementById('stat-profit').innerText = `${formatCurrency(data.today_profit)} SDG`; } catch (err) { console.log("Offline Dashboard"); } }
 
-// 4. Suppliers
+// Suppliers
 async function loadSuppliersList() { try { const res = await apiFetch(`${API_URL}/suppliers`); const suppliers = await res.json(); const list = document.getElementById('suppliers-list'); if(suppliers.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center">لا يوجد موردين.</p>'; return; } list.innerHTML = suppliers.map(s => `<div class="flex justify-between items-center p-3 border-b border-gray-100"><div><p class="font-bold text-primary">${s.name}</p><p class="text-xs text-gray-500">${s.phone || 'لا يوجد هاتف'}</p></div></div>`).join(''); } catch (err) { console.error(err); } }
 async function loadSuppliersForDropdown() { try { const res = await apiFetch(`${API_URL}/suppliers`); const suppliers = await res.json(); const select = document.getElementById('med-supplier'); if(!select) return; select.innerHTML = '<option value="">اختر المورد...</option>' + suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join(''); } catch (err) { console.error(err); } }
 document.getElementById('add-supplier-form')?.addEventListener('submit', async (e) => { e.preventDefault(); const name = document.getElementById('sup-name').value; const phone = document.getElementById('sup-phone').value; try { const res = await apiFetch(`${API_URL}/suppliers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, phone }) }); if(res.ok) { await showAlert("تم بنجاح", "تم إضافة المورد.", "success"); document.getElementById('add-supplier-form').reset(); loadSuppliersList(); } } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } });
 
-// 5. Medicines CRUD
+// Medicines
 async function loadMedicines() { try { const res = await apiFetch(`${API_URL}/medicines`); const medicines = await res.json(); const posList = document.getElementById('medicines-list'); if(posList) { posList.innerHTML = medicines.map(med => `<div onclick="addToCart(${med.id}, '${med.name}', ${med.price})" class="cursor-pointer flex justify-between items-center p-3 border-b border-gray-100 hover:bg-primary/5 transition rounded-xl"><div><p class="font-bold text-gray-800 text-sm">${med.name}</p></div><div class="text-left"><p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p><p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity}</p></div></div>`).join(''); } const invList = document.getElementById('inventory-list'); if(invList) { invList.innerHTML = medicines.map(med => `<div class="flex justify-between items-center p-3 border-b border-gray-100"><div><p class="font-bold text-gray-800 text-sm">${med.name}</p><p class="text-[10px] text-gray-500">${med.category || ''} | ${med.supplier_name || 'بدون مورد'}</p></div><div class="text-left flex items-center gap-3"><div><p class="font-bold text-primary text-sm">${med.price} SDG</p><p class="text-[10px] ${med.stock_quantity <= 10 ? 'text-red-500 font-bold' : 'text-gray-400'}">المخزون: ${med.stock_quantity}</p></div><button onclick='editMedicine(${JSON.stringify(med)})' class="bg-blue-50 text-blue-600 p-2 rounded-lg">✏️</button><button onclick="deleteMedicine(${med.id})" class="bg-red-50 text-red-600 p-2 rounded-lg">🗑️</button></div></div>`).join(''); } await localforage.setItem('kodnaqi_medicines', medicines); } catch (err) { const meds = await localforage.getItem('kodnaqi_medicines') || []; const posList = document.getElementById('medicines-list'); if(posList && meds.length) { posList.innerHTML = meds.map(med => `<div onclick="addToCart(${med.id}, '${med.name}', ${med.price})" class="cursor-pointer flex justify-between items-center p-3 border-b border-gray-100 hover:bg-primary/5 transition rounded-xl"><div><p class="font-bold text-gray-800 text-sm">${med.name}</p></div><div class="text-left"><p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p><p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity}</p></div></div>`).join(''); } } }
-document.getElementById('add-medicine-form')?.addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('med-id').value; const data = { name: document.getElementById('med-name').value, scientific_name: document.getElementById('med-scientific').value || null, category: document.getElementById('med-category').value || null, supplier_id: document.getElementById('med-supplier').value ? parseInt(document.getElementById('med-supplier').value) : null, price: parseFloat(document.getElementById('med-price').value), cost: parseFloat(document.getElementById('med-cost').value) || 0, stock_quantity: parseInt(document.getElementById('med-stock').value), barcode: document.getElementById('med-barcode').value || null, expiry_date: document.getElementById('med-expiry').value || null }; const method = id ? 'PUT' : 'POST'; const url = id ? `${API_URL}/medicines/${id}` : `${API_URL}/medicines`; try { const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { await showAlert("تم بنجاح", id ? "تم التعديل." : "تم الإضافة.", "success"); resetInvForm(); loadMedicines(); } else showAlert("خطأ", "تأكد من أن الباركود غير مكرر.", "error"); } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } });
+document.getElementById('add-medicine-form')?.addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('med-id').value; const data = { name: document.getElementById('med-name').value, scientific_name: document.getElementById('med-scientific').value || null, category: document.getElementById('med-category').value || null, supplier_id: document.getElementById('med-supplier').value ? parseInt(document.getElementById('med-supplier').value) : null, price: parseFloat(document.getElementById('med-price').value), cost: parseFloat(document.getElementById('med-cost').value) || 0, stock_quantity: parseInt(document.getElementById('med-stock').value), barcode: document.getElementById('med-barcode').value || null, expiry_date: document.getElementById('med-expiry').value || null }; const method = id ? 'PUT' : 'POST'; const url = id ? `${API_URL}/medicines/${id}` : `${API_URL}/medicines`; try { const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { await showAlert("تم بنجاح", id ? "تم التعديل." : "تم الإضافة.", "success"); resetInvForm(); loadMedicines(); } else showAlert("خطأ", "تأكد من أن الباركود غير مكرر.", "error"); } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } });
 function editMedicine(med) { document.getElementById('med-id').value = med.id; document.getElementById('med-name').value = med.name; document.getElementById('med-scientific').value = med.scientific_name || ''; document.getElementById('med-category').value = med.category || ''; document.getElementById('med-supplier').value = med.supplier_id || ''; document.getElementById('med-price').value = med.price; document.getElementById('med-cost').value = med.cost || ''; document.getElementById('med-stock').value = med.stock_quantity; document.getElementById('med-barcode').value = med.barcode || ''; document.getElementById('med-expiry').value = med.expiry_date || ''; document.getElementById('inv-form-title').innerText = "تعديل دواء"; document.getElementById('cancel-edit-btn').classList.remove('hidden'); window.scrollTo(0,0); }
 function resetInvForm() { document.getElementById('add-medicine-form').reset(); document.getElementById('med-id').value = ''; document.getElementById('inv-form-title').innerText = "إضافة دواء جديد"; document.getElementById('cancel-edit-btn').classList.add('hidden'); }
 async function deleteMedicine(id) { if(!confirm("هل أنت متأكد من حذف هذا الدواء؟")) return; try { const res = await apiFetch(`${API_URL}/medicines/${id}`, { method: 'DELETE' }); if(res.ok) { loadMedicines(); showAlert("تم", "تم حذف الدواء.", "success"); } } catch (err) { console.error(err); } }
 function filterMedicines() { const query = document.getElementById('pos-search').value.toLowerCase(); const items = document.querySelectorAll('#medicines-list > div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(query) ? 'flex' : 'none'; }); }
 function filterInventory() { const query = document.getElementById('inv-search').value.toLowerCase(); const items = document.querySelectorAll('#inventory-list > div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(query) ? 'flex' : 'none'; }); }
 
-// 6. POS & Cart
+// POS & Cart
 function addToCart(id, name, price) { const existing = cart.find(item => item.medicine_id === id); if (existing) existing.quantity += 1; else cart.push({ medicine_id: id, name: name, unit_price: price, quantity: 1 }); renderCart(); }
 function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
 function updateQuantity(index, change) { cart[index].quantity += change; if (cart[index].quantity <= 0) cart.splice(index, 1); renderCart(); }
 function renderCart() { const cartDiv = document.getElementById('cart-items'); const totalEl = document.getElementById('cart-total'); if (!cartDiv || !totalEl) return; if (cart.length === 0) { cartDiv.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">الفاتورة فارغة.</p>'; totalEl.innerText = `0 SDG`; return; } let total = 0; cartDiv.innerHTML = cart.map((item, index) => { total += item.unit_price * item.quantity; return `<div class="flex justify-between items-center p-3 bg-bg rounded-xl mb-2"><div class="flex-1"><p class="font-bold text-sm text-primary">${item.name}</p><p class="text-xs text-gray-500">${item.unit_price} SDG</p></div><div class="flex items-center gap-3"><div class="flex items-center bg-white rounded-lg border border-gray-100"><button onclick="updateQuantity(${index}, 1)" class="px-3 py-1 text-primary font-bold">+</button><span class="px-2 font-bold text-sm">${item.quantity}</span><button onclick="updateQuantity(${index}, -1)" class="px-3 py-1 text-red-500 font-bold">-</button></div><span class="font-bold text-primary w-20 text-left">${formatCurrency(item.unit_price * item.quantity)} SDG</span><button onclick="removeFromCart(${index})" class="text-red-500 bg-red-50 p-2 rounded-lg">✖</button></div></div>`; }).join(''); totalEl.innerText = `${formatCurrency(total)} SDG`; }
 async function checkout() { if (cart.length === 0) return showAlert("تنبيه", "الفاتورة فارغة.", "error"); let total = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0); const paid = await showPrompt("الدفع", `الإجمالي المطلوب: ${formatCurrency(total)} SDG`, total); if (paid === null || paid === "") return; const paidAmount = parseFloat(paid); if (isNaN(paidAmount) || paidAmount < total) return showAlert("خطأ", "المبلغ غير كافٍ!", "error"); const localId = Date.now(); const saleData = { id: localId, discount: 0, paid_amount: paidAmount, items: cart.map(i => ({ medicine_id: i.medicine_id, quantity: i.quantity, unit_price: i.unit_price })), invoice_number: `OFF-${localId.toString().slice(-6)}`, sale_date: new Date().toISOString() }; let sales = await localforage.getItem('kodnaqi_sales') || []; sales.unshift(saleData); await localforage.setItem('kodnaqi_sales', sales); let outbox = await localforage.getItem('kodnaqi_outbox') || []; outbox.push(saleData); await localforage.setItem('kodnaqi_outbox', outbox); const change = paidAmount - total; preparePrintInvoice(saleData.invoice_number, cart, total, paidAmount, change); let msg = `رقم الفاتورة: <b>${saleData.invoice_number}</b><br>الباقي: <b class="text-primary text-lg">${formatCurrency(change)} SDG</b>`; msg += `<br><br><button onclick="window.print()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-bold w-full">🖨️ طباعة الفاتورة</button>`; await showAlert("تمت العملية", msg, "success"); cart = []; renderCart(); loadMedicines(); processOutbox(); }
 
-// 7. Sync & History
+// Sync & History
 async function processOutbox() { if(!navigator.onLine) return; let outbox = await localforage.getItem('kodnaqi_outbox') || []; if(outbox.length === 0) return; let sales = await localforage.getItem('kodnaqi_sales') || []; let outboxChanged = false; for (let i = 0; i < outbox.length; i++) { let sale = outbox[i]; let sendData = { discount: sale.discount, paid_amount: sale.paid_amount, items: sale.items.map(item => ({ medicine_id: item.medicine_id, quantity: item.quantity, unit_price: item.unit_price })) }; try { let res = await apiFetch(`${API_URL}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sendData) }); if (res.ok) { let serverData = await res.json(); let localSaleIndex = sales.findIndex(s => s.id == sale.id); if (localSaleIndex !== -1) sales[localSaleIndex].invoice_number = serverData.invoice_number; outbox.splice(i, 1); i--; outboxChanged = true; } else { break; } } catch(e) { break; } } if (outboxChanged) { await localforage.setItem('kodnaqi_sales', sales); await localforage.setItem('kodnaqi_outbox', outbox); } }
 async function loadHistory() { const list = document.getElementById('history-list'); if (!list) return; let localSales = await localforage.getItem('kodnaqi_sales') || []; try { const res = await apiFetch(`${API_URL}/sales`); if(res.ok) { const serverSales = await res.json(); let mergedSales = [...localSales]; serverSales.forEach(ss => { let existingIndex = mergedSales.findIndex(s => s.invoice_number === ss.invoice_number); if(existingIndex !== -1) mergedSales[existingIndex] = { ...mergedSales[existingIndex], ...ss }; else mergedSales.push(ss); }); mergedSales.sort((a,b) => new Date(b.sale_date) - new Date(a.sale_date)); await localforage.setItem('kodnaqi_sales', mergedSales); renderHistoryList(mergedSales, list); } else renderHistoryList(localSales, list); } catch(e) { renderHistoryList(localSales, list); } }
 function renderHistoryList(sales, list) { if (sales.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد فواتير سابقة.</p>'; return; } list.innerHTML = sales.map(sale => { const date = new Date(sale.sale_date).toLocaleString('en-GB'); const isSynced = !sale.invoice_number.startsWith('OFF-'); return `<div class="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition"><div><p class="font-bold text-primary">${sale.invoice_number} ${!isSynced ? '<span class="text-[9px] text-orange-500 bg-orange-50 px-1 rounded">معلق</span>' : ''}</p><p class="text-xs text-gray-400 mt-1">${date}</p></div><div class="text-left flex items-center gap-4"><div><p class="font-bold text-primary">${formatCurrency(sale.total_amount || sale.items.reduce((s,i)=>s+(i.unit_price*i.quantity),0))} SDG</p><p class="text-xs text-gray-400">${sale.items.length} أصناف</p></div><button onclick='reprintInvoice(${JSON.stringify(sale)})' class="bg-blue-50 text-blue-600 p-3 rounded-xl hover:bg-blue-100 transition">🖨️</button></div></div>`; }).join(''); }
 
-// 8. Print & Camera
+// Print & Camera
 function preparePrintInvoice(invNum, items, total, paid, change, originalDate = null) { const nameEl = document.getElementById('print-pharmacy-name'); if(nameEl) nameEl.innerText = document.getElementById('pharmacy-name').innerText; let printDate = originalDate ? new Date(originalDate) : new Date(); document.getElementById('print-date').innerText = `التاريخ: ${printDate.toLocaleDateString('en-GB')} ${printDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'})}`; document.getElementById('print-inv-num').innerText = invNum; document.getElementById('print-items').innerHTML = items.map(item => `<tr class="border-b border-gray-300 border-dashed"><td class="py-2">${item.name}</td><td class="py-2 text-center">${item.quantity}</td><td class="py-2 text-left">${formatCurrency(item.unit_price)}</td><td class="py-2 text-left">${formatCurrency(item.unit_price * item.quantity)}</td></tr>`).join(''); document.getElementById('print-total').innerText = `${formatCurrency(total)} SDG`; document.getElementById('print-paid').innerText = `${formatCurrency(paid)} SDG`; document.getElementById('print-change').innerText = `${formatCurrency(change)} SDG`; if (typeof JsBarcode !== 'undefined') JsBarcode("#print-barcode", invNum, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: false }); document.getElementById('print-inv-text').innerText = invNum; }
 function reprintInvoice(sale) { let total = sale.total_amount || sale.items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0); preparePrintInvoice(sale.invoice_number, sale.items, total, sale.paid_amount, (sale.paid_amount - total), sale.sale_date); setTimeout(() => window.print(), 500); }
 function startScanner() { document.getElementById('reader').classList.remove('hidden'); document.getElementById('stop-btn').classList.remove('hidden'); html5QrCode = new Html5Qrcode("reader"); html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, (decodedText) => { stopScanner(); findMedicineByBarcode(decodedText); }, (e) => {}).catch(err => showAlert("خطأ", "تأكد من صلاحية الكاميرا", "error")); }
 function stopScanner() { if (html5QrCode) { html5QrCode.stop().then(() => { document.getElementById('reader').classList.add('hidden'); document.getElementById('stop-btn').classList.add('hidden'); html5QrCode = null; }); } }
 async function findMedicineByBarcode(barcode) { try { const res = await apiFetch(`${API_URL}/medicines/barcode/${barcode}`); if (res.ok) { const med = await res.json(); addToCart(med.id, med.name, med.price); showAlert("تمت الإضافة", `تم إضافة <b>${med.name}</b>.`, "success"); } else showAlert("غير موجود", `لا يوجد دواء بالباركود: ${barcode}`, "error"); } catch (err) { console.error(err); } }
 
-// 9. Service Worker
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered'))); }
