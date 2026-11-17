@@ -3,6 +3,61 @@ function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
 
 // 1. Init & Auth
 window.addEventListener('load', () => { setTimeout(() => { const splash = document.getElementById('splash-screen'); if (splash) { splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; if (localStorage.getItem('kodnaqi_auth') === 'true') { showApp(); } else { const login = document.getElementById('login-screen'); if(login) { login.classList.remove('hidden'); login.classList.add('flex'); } } }, 500); } }, 2000); });
+
+let isLoginMode = true;
+
+function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    const loginBox = document.getElementById('login-form-box');
+    const regBox = document.getElementById('register-form-box');
+    const title = document.getElementById('auth-title');
+    const subtitle = document.getElementById('auth-subtitle');
+    const toggleBtn = document.getElementById('toggle-auth-btn');
+
+    if (isLoginMode) {
+        loginBox.classList.remove('hidden');
+        regBox.classList.add('hidden');
+        title.innerText = "مرحباً بك مجدداً";
+        subtitle.innerText = "سجل الدخول لإدارة صيدليتك";
+        toggleBtn.innerText = "ليس لديك حساب؟ إنشاء حساب جديد";
+    } else {
+        loginBox.classList.add('hidden');
+        regBox.classList.remove('hidden');
+        title.innerText = "حساب جديد";
+        subtitle.innerText = "أنشئ حسابك لإدارة صيدليتك";
+        toggleBtn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
+    }
+}
+
+async function handleRegister() {
+    const user = document.getElementById('reg-user').value;
+    const email = document.getElementById('reg-email').value;
+    const pass = document.getElementById('reg-pass').value;
+    const confirmPass = document.getElementById('reg-pass-confirm').value;
+
+    if(!user || !pass) return showAlert("تنبيه", "أدخل اسم المستخدم وكلمة المرور", "error");
+    if(pass !== confirmPass) return showAlert("خطأ", "كلمتا المرور غير متطابقتين", "error");
+
+    try {
+        const res = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, email: email, password: pass })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            await showAlert("تم بنجاح", "تم إنشاء الحساب، يمكنك الآن تسجيل الدخول.", "success");
+            toggleAuthMode(); // العودة لنموذج الدخول
+            document.getElementById('login-user').value = user; // تعبئة اسم المستخدم
+        } else {
+            showAlert("خطأ", data.detail || "حدث خطأ أثناء إنشاء الحساب", "error");
+        }
+    } catch (err) {
+        showAlert("خطأ", "تعذر الاتصال بالسيرفر", "error");
+    }
+}
+
 async function handleLogin() { const user = document.getElementById('login-user').value; const pass = document.getElementById('login-pass').value; if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error"); try { const res = await fetch(`${API_URL}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) }); const data = await res.json(); if (res.ok) { localStorage.setItem('kodnaqi_auth', 'true'); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('flex'); showApp(); } else { showAlert("خطأ", data.detail || "بيانات غير صحيحة", "error"); } } catch (err) { if(user === 'admin' && pass === 'admin') { localStorage.setItem('kodnaqi_auth', 'true'); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('flex'); showApp(); } else { showAlert("خطأ", "تعذر الاتصال", "error"); } } }
 function handleLogout() { localStorage.removeItem('kodnaqi_auth'); window.location.reload(); }
 function showApp() { const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); switchTab('dashboard'); }
