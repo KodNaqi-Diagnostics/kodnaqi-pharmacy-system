@@ -135,3 +135,28 @@ function stopScanner() { if (html5QrCode) { html5QrCode.stop().then(() => { docu
 async function findMedicineByBarcode(barcode) { try { const res = await apiFetch(`${API_URL}/medicines/barcode/${barcode}`); if (res.ok) { const med = await res.json(); addToCart(med.id, med.name, med.price); showAlert("تمت الإضافة", `تم إضافة <b>${med.name}</b>.`, "success"); } else showAlert("غير موجود", `لا يوجد دواء بالباركود: ${barcode}`, "error"); } catch (err) { console.error(err); } }
 
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered'))); }
+
+
+document.getElementById('change-password-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const oldPass = document.getElementById('old-password').value;
+    const newPass = document.getElementById('new-password').value;
+    
+    try {
+        const res = await apiFetch(`${API_URL}/users/me/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            await showAlert("تم بنجاح", "تم تغيير كلمة المرور بنجاح. يرجى استخدام الكلمة الجديدة في المرة القادمة.", "success");
+            document.getElementById('change-password-form').reset();
+        } else {
+            showAlert("خطأ", data.detail || "حدث خطأ أثناء التغيير", "error");
+        }
+    } catch (err) {
+        showAlert("خطأ", "تعذر الاتصال بالسيرفر", "error");
+    }
+});

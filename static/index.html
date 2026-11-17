@@ -115,6 +115,21 @@
                         <div class="p-4"><button type="submit" class="w-full bg-primary/10 text-primary py-3 rounded-xl font-bold">تحديث</button></div>
                     </form>
                 </div>
+                
+                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4 mb-4">
+                    <div class="p-4 border-b border-gray-100">
+                        <h3 class="font-bold text-primary flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                            تغيير كلمة المرور
+                        </h3>
+                    </div>
+                    <form id="change-password-form" class="p-4 space-y-3">
+                        <input type="password" id="old-password" placeholder="كلمة المرور الحالية" required class="w-full bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none" dir="ltr">
+                        <input type="password" id="new-password" placeholder="كلمة المرور الجديدة" required class="w-full bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none" dir="ltr">
+                        <button type="submit" class="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold">تحديث كلمة المرور</button>
+                    </form>
+                </div>
+
                 <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div>
             </div>
         </main>
