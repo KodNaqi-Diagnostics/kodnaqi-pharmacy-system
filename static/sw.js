@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'kodnaqi-v31'; // تحديث الإصدار
+const CACHE_NAME = 'kodnaqi-v32'; // تحديث الإصدار
 const ASSETS = [
     '/', '/index.html', '/app.js', '/manifest.json', '/logo-pharma.png', '/icon-pharma.png',
     'https://cdn.tailwindcss.com', 'https://unpkg.com/html5-qrcode',
