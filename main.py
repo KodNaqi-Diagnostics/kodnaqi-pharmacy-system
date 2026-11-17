@@ -267,5 +267,24 @@ def get_stats(admin_user: dict = Depends(check_admin)):
             low_stock = cur.fetchall()
             return {"today_sales_count": today["count"] or 0, "today_revenue": today["total"] or 0, "today_profit": profit["total_profit"] or 0, "low_stock_alerts": [dict(r) for r in low_stock], "expiring_soon_alerts": [], "expired_alerts": []}
 
+
+class PasswordChangeIn(BaseModel):
+    old_password: str
+    new_password: str
+
+@app.put("/api/users/me/password")
+def change_password(data: PasswordChangeIn, user: dict = Depends(get_current_user)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # التحقق من كلمة المرور القديمة
+            if not pwd_context.verify(data.old_password, user['password_hash']):
+                raise HTTPException(400, "كلمة المرور الحالية غير صحيحة")
+            
+            # تحديث كلمة المرور
+            new_hash = pwd_context.hash(data.new_password)
+            cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user['id']))
+            conn.commit()
+            return {"status": "success", "message": "تم تغيير كلمة المرور بنجاح"}
+
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
