@@ -8,7 +8,7 @@
     <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Tajawal', 'sans-serif'], english: ['Poppins', 'sans-serif'] }, colors: { primary: '#0b4d3b', bg: '#f2ede4', card: '#ffffff', textMain: '#1a202c' } } } }</script>
     <script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <link rel="manifest" href="/manifest.json">
-    <style>body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; } .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); } @media print { body > * { display: none !important; } #print-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; } #app-modal { display: none !important; } @page { margin: 5mm; } }</style>
+    <style>body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; } .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); } @media print { body > * { display: none !important; } #print-area, #z-report-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; } #app-modal { display: none !important; } @page { margin: 5mm; } }</style>
 </head>
 <body class="text-textMain pb-24">
     <div id="splash-screen" class="fixed inset-0 bg-primary z-[100] flex flex-col items-center justify-center transition-opacity duration-500"><img src="/logo-pharma.png" class="w-48 h-48 object-contain mb-4"><h1 class="text-white text-3xl font-bold tracking-widest font-english mt-2">KodNaqi Pharmacy</h1></div>
@@ -47,6 +47,9 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-card p-4 rounded-3xl premium-shadow flex flex-col items-center"><span class="text-gray-500 text-xs font-bold mb-1">مبيعات اليوم</span><span id="stat-revenue" class="text-2xl font-bold text-primary">0 SDG</span><span id="stat-count" class="text-[10px] text-gray-400 mt-1">0 فاتورة</span></div>
                     <div class="bg-card p-4 rounded-3xl premium-shadow flex flex-col items-center"><span class="text-gray-500 text-xs font-bold mb-1">أرباح اليوم</span><span id="stat-profit" class="text-2xl font-bold text-blue-600">0 SDG</span></div>
+                </div>
+                <div class="bg-card p-5 rounded-3xl premium-shadow">
+                     <button onclick="printZReport()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> طباعة تقفيل الوردية (Z-Report)</button>
                 </div>
             </div>
 
@@ -93,6 +96,23 @@
                 <div class="bg-card p-5 rounded-3xl premium-shadow"><h2 class="text-lg font-bold mb-4 text-primary">الموردين</h2><div id="suppliers-list" class="space-y-2"></div></div>
             </div>
 
+            <div id="view-purchases" class="hidden space-y-6">
+                <div class="bg-card p-5 rounded-3xl premium-shadow mb-4">
+                    <h2 class="text-lg font-bold mb-4 text-primary">فاتورة شراء جديدة</h2>
+                    <div class="space-y-3 mb-4">
+                        <select id="pur-supplier" class="w-full bg-bg rounded-xl p-3 text-sm"><option value="">اختر المورد...</option></select>
+                        <select id="pur-medicine" class="w-full bg-bg rounded-xl p-3 text-sm"><option value="">اختر الدواء...</option></select>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" id="pur-qty" placeholder="الكمية" class="bg-bg rounded-xl p-3 text-sm">
+                            <input type="number" id="pur-cost" placeholder="سعر التكلفة للواحدة" class="bg-bg rounded-xl p-3 text-sm">
+                        </div>
+                        <button type="button" onclick="addToPurchaseCart()" class="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-sm">إضافة للفاتورة</button>
+                    </div>
+                    <div id="purchase-cart" class="space-y-2 mb-4"><p class="text-gray-400 text-sm text-center">لم تتم إضافة أصناف.</p></div>
+                    <button onclick="savePurchase()" class="w-full bg-primary text-white py-3.5 rounded-xl font-bold">حفظ فاتورة الشراء</button>
+                </div>
+            </div>
+
             <div id="view-users" class="hidden space-y-6">
                 <div class="bg-card p-5 rounded-3xl premium-shadow mb-4">
                     <h2 class="text-lg font-bold mb-4 text-primary">إضافة موظف</h2>
@@ -115,22 +135,15 @@
                         <div class="p-4"><button type="submit" class="w-full bg-primary/10 text-primary py-3 rounded-xl font-bold">تحديث</button></div>
                     </form>
                 </div>
-                
                 <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4 mb-4">
-                    <div class="p-4 border-b border-gray-100">
-                        <h3 class="font-bold text-primary flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                            تغيير كلمة المرور
-                        </h3>
-                    </div>
+                    <div class="p-4 border-b border-gray-100"><h3 class="font-bold text-primary">تغيير كلمة المرور</h3></div>
                     <form id="change-password-form" class="p-4 space-y-3">
                         <input type="password" id="old-password" placeholder="كلمة المرور الحالية" required class="w-full bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none" dir="ltr">
                         <input type="password" id="new-password" placeholder="كلمة المرور الجديدة" required class="w-full bg-bg border-0 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none" dir="ltr">
                         <button type="submit" class="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold">تحديث كلمة المرور</button>
                     </form>
                 </div>
-
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div>
+                <div class="bg-card rounded-3xl premium-shadow overflow-hidden"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div>
             </div>
         </main>
 
@@ -139,19 +152,32 @@
             <button onclick="switchTab('pos')" id="btn-pos" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الكاشير</span></button>
             <button onclick="switchTab('inventory')" id="btn-inventory" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg><span class="text-[10px] font-bold">المخزون</span></button>
             <button onclick="switchTab('history')" id="btn-history" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="text-[10px] font-bold">السجلات</span></button>
+            <button onclick="switchTab('purchases')" id="btn-purchases" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">المشتريات</span></button>
             <button onclick="switchTab('suppliers')" id="btn-suppliers" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الموردين</span></button>
             <button onclick="switchTab('users')" id="btn-users" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg><span class="text-[10px] font-bold">الموظفين</span></button>
-        
-            <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px] transition-all">
-                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <span class="text-[10px] font-bold">الإعدادات</span>
-            </button>
+            <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-[10px] font-bold">الإعدادات</span></button>
         </nav>
-
     </div>
     
     <div id="print-area" class="hidden bg-white text-black p-4 w-full max-w-sm mx-auto font-sans text-sm" dir="rtl"><div class="text-center border-b-2 border-black border-dashed pb-2 mb-2"><h2 id="print-pharmacy-name" class="text-xl font-bold mb-1">اسم الصيدلية</h2><p class="text-xs" id="print-date">التاريخ</p><p class="text-xs font-bold mt-1">رقم الفاتورة: <span id="print-inv-num"></span></p></div><table class="w-full text-xs text-right mb-2"><thead><tr class="border-b border-black"><th class="pb-1">الصنف</th><th class="pb-1 text-center">الكمية</th><th class="pb-1 text-left">السعر</th><th class="pb-1 text-left">الإجمالي</th></tr></thead><tbody id="print-items"></tbody></table><div class="border-t-2 border-black border-dashed pt-2 mb-4 space-y-1 text-sm"><div class="flex justify-between font-bold"><span>الإجمالي:</span><span id="print-total"></span></div><div class="flex justify-between"><span>المدفوع:</span><span id="print-paid"></span></div><div class="flex justify-between"><span>الباقي:</span><span id="print-change"></span></div></div><div class="flex flex-col items-center mt-6"><svg id="print-barcode" class="w-full max-w-[200px]"></svg><p class="text-xs mt-1 font-mono" id="print-inv-text"></p></div><div class="text-center text-xs mt-4 border-t border-black border-dashed pt-2"><p>شكراً لزيارتكم!</p></div></div>
     
+    <!-- منطقة طباعة تقفيل الوردية (Z-Report) -->
+    <div id="z-report-area" class="hidden bg-white text-black p-4 w-full max-w-sm mx-auto font-sans text-sm" dir="rtl">
+        <div class="text-center border-b-2 border-black border-dashed pb-2 mb-4">
+            <h2 class="text-xl font-bold mb-1">تقرير تقفيل الوردية (Z-Report)</h2>
+            <p class="text-xs font-bold" id="z-report-date">التاريخ</p>
+        </div>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between font-bold"><span>عدد الفواتير:</span><span id="z-report-count">0</span></div>
+            <div class="flex justify-between font-bold text-lg"><span>إجمالي المبيعات:</span><span id="z-report-sales">0 SDG</span></div>
+            <div class="flex justify-between text-gray-700"><span>إجمالي الأرباح:</span><span id="z-report-profit">0 SDG</span></div>
+        </div>
+        <div class="text-center text-xs mt-8 border-t border-black border-dashed pt-2">
+            <p>توقيع الكاشير: ........................</p>
+            <p class="mt-4">توقيع المدير: ........................</p>
+        </div>
+    </div>
+
     <div id="app-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50"><div class="bg-white rounded-2xl shadow-2xl p-6 w-11/12 max-w-sm transform scale-95 transition-transform" id="modal-content"><div id="modal-icon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"><span class="text-3xl text-primary">✅</span></div><h3 id="modal-title" class="text-xl font-bold text-center mb-2">عنوان</h3><p id="modal-message" class="text-center text-gray-600 mb-6 text-sm">رسالة</p><input type="number" id="modal-input" class="hidden w-full text-center text-2xl font-bold border-2 border-primary rounded-lg p-3 mb-6" dir="ltr"><div class="flex gap-3"><button id="modal-cancel" class="hidden flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold">إلغاء</button><button id="modal-confirm" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">موافق</button></div></div></div>
     <script src="/app.js"></script>
 </body>

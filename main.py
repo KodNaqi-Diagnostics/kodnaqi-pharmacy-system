@@ -36,10 +36,13 @@ def init_db():
             cur.execute("CREATE TABLE IF NOT EXISTS sales (id SERIAL PRIMARY KEY, invoice_number TEXT UNIQUE, total_amount REAL, discount REAL, paid_amount REAL, sale_date TEXT);")
             cur.execute("CREATE TABLE IF NOT EXISTS sale_items (id SERIAL PRIMARY KEY, sale_id INTEGER REFERENCES sales(id) ON DELETE CASCADE, medicine_id INTEGER, quantity INTEGER, unit_price REAL, total_price REAL);")
             
+            # جداول المشتريات
+            cur.execute("CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, supplier_id INTEGER REFERENCES suppliers(id), total_amount REAL, purchase_date TEXT);")
+            cur.execute("CREATE TABLE IF NOT EXISTS purchase_items (id SERIAL PRIMARY KEY, purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE, medicine_id INTEGER, quantity INTEGER, unit_cost REAL, total_cost REAL);")
+
             cur.execute("SELECT COUNT(*) FROM users")
             if cur.fetchone()[0] == 0: 
                 cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", pwd_context.hash("admin"), "admin"))
-            
             cur.execute("INSERT INTO settings (id, pharmacy_name, currency, updated_at) VALUES (1, 'KodNaqi Pharmacy', 'SDG', %s) ON CONFLICT (id) DO NOTHING", (now_iso(),))
             conn.commit()
 init_db()
@@ -50,6 +53,9 @@ class LoginIn(BaseModel):
 class RegisterIn(BaseModel):
     username: str
     password: str
+class PasswordChangeIn(BaseModel):
+    old_password: str
+    new_password: str
 class MedicineIn(BaseModel):
     barcode: Optional[str] = None
     name: str
@@ -74,6 +80,13 @@ class SaleIn(BaseModel):
     discount: float = 0
     paid_amount: float
     items: list[SaleItemIn]
+class PurchaseItemIn(BaseModel):
+    medicine_id: int
+    quantity: int
+    unit_cost: float
+class PurchaseIn(BaseModel):
+    supplier_id: int
+    items: list[PurchaseItemIn]
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -111,15 +124,23 @@ def login(data: LoginIn):
             raise HTTPException(401, "بيانات الدخول غير صحيحة")
 
 @app.post("/api/register")
-def register(data: RegisterIn): # التسجيل متاح للجميع، ولكن يتم إنشاؤه كـ "كاشير" افتراضياً
+def register(data: RegisterIn):
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
             if cur.fetchone(): raise HTTPException(400, "اسم المستخدم موجود بالفعل")
-            hashed_pw = pwd_context.hash(data.password)
-            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'cashier') RETURNING id", (data.username, hashed_pw))
+            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'cashier') RETURNING id", (data.username, pwd_context.hash(data.password)))
             conn.commit()
             return {"status": "success", "message": "تم إنشاء الحساب بنجاح"}
+
+@app.put("/api/users/me/password")
+def change_password(data: PasswordChangeIn, user: dict = Depends(get_current_user)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            if not pwd_context.verify(data.old_password, user['password_hash']): raise HTTPException(400, "كلمة المرور الحالية غير صحيحة")
+            cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (pwd_context.hash(data.new_password), user['id']))
+            conn.commit()
+            return {"status": "success"}
 
 @app.get("/api/users")
 def get_users(admin_user: dict = Depends(check_admin)):
@@ -130,21 +151,17 @@ def get_users(admin_user: dict = Depends(check_admin)):
 
 @app.post("/api/users")
 def add_user(data: dict, admin_user: dict = Depends(check_admin)):
-    username = data.get("username")
-    password = data.get("password")
-    role = data.get("role", "cashier")
-    if not username or not password: raise HTTPException(400, "بيانات ناقصة")
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+            cur.execute("SELECT * FROM users WHERE username = %s", (data.get("username"),))
             if cur.fetchone(): raise HTTPException(400, "اسم المستخدم موجود")
-            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", (username, pwd_context.hash(password), role))
+            cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", (data.get("username"), pwd_context.hash(data.get("password")), data.get("role", "cashier")))
             conn.commit()
             return {"status": "success"}
 
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: int, admin_user: dict = Depends(check_admin)):
-    if user_id == admin_user['id']: raise HTTPException(400, "لا يمكنك حذف حسابك الحالي")
+    if user_id == admin_user['id']: raise HTTPException(400, "لا يمكنك حذف حسابك")
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
@@ -235,6 +252,49 @@ def get_sales(user: dict = Depends(get_current_user)):
                 result.append(sale_dict)
             return result
 
+# --- Purchases ---
+@app.post("/api/purchases")
+def create_purchase(purchase: PurchaseIn, admin_user: dict = Depends(check_admin)):
+    total_amount = sum(item.quantity * item.unit_cost for item in purchase.items)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("INSERT INTO purchases (supplier_id, total_amount, purchase_date) VALUES (%s, %s, %s) RETURNING id", (purchase.supplier_id, total_amount, now_iso()))
+            purchase_id = cur.fetchone()['id']
+            for item in purchase.items:
+                cur.execute("INSERT INTO purchase_items (purchase_id, medicine_id, quantity, unit_cost, total_cost) VALUES (%s, %s, %s, %s, %s)", (purchase_id, item.medicine_id, item.quantity, item.unit_cost, item.quantity * item.unit_cost))
+                # تحديث المخزون وسعر التكلفة
+                cur.execute("UPDATE medicines SET stock_quantity = stock_quantity + %s, cost = %s WHERE id = %s", (item.quantity, item.unit_cost, item.medicine_id))
+            conn.commit()
+            return {"status": "success", "purchase_id": purchase_id}
+
+# --- Stats & Z-Report ---
+@app.get("/api/stats")
+def get_stats(admin_user: dict = Depends(check_admin)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")
+            today = cur.fetchone()
+            cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
+            profit = cur.fetchone()
+            cur.execute("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity <= 10")
+            low_stock = cur.fetchall()
+            return {"today_sales_count": today["count"] or 0, "today_revenue": today["total"] or 0, "today_profit": profit["total_profit"] or 0, "low_stock_alerts": [dict(r) for r in low_stock], "expiring_soon_alerts": [], "expired_alerts": []}
+
+@app.get("/api/z-report")
+def get_z_report(user: dict = Depends(get_current_user)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")
+            today_sales = cur.fetchone()
+            cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
+            profit = cur.fetchone()
+            return {
+                "date": str(datetime.now().date()),
+                "total_sales": today_sales["total"] or 0,
+                "total_invoices": today_sales["count"] or 0,
+                "total_profit": profit["total_profit"] or 0
+            }
+
 @app.get("/api/settings")
 def get_settings(user: dict = Depends(get_current_user)):
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -254,37 +314,6 @@ def update_settings(data: SettingsIn, admin_user: dict = Depends(check_admin)):
             cur.execute(f"UPDATE settings SET {', '.join(updates)} WHERE id = %s RETURNING *", tuple(values))
             conn.commit()
             return dict(cur.fetchone())
-
-@app.get("/api/stats")
-def get_stats(admin_user: dict = Depends(check_admin)):
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")
-            today = cur.fetchone()
-            cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
-            profit = cur.fetchone()
-            cur.execute("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity <= 10")
-            low_stock = cur.fetchall()
-            return {"today_sales_count": today["count"] or 0, "today_revenue": today["total"] or 0, "today_profit": profit["total_profit"] or 0, "low_stock_alerts": [dict(r) for r in low_stock], "expiring_soon_alerts": [], "expired_alerts": []}
-
-
-class PasswordChangeIn(BaseModel):
-    old_password: str
-    new_password: str
-
-@app.put("/api/users/me/password")
-def change_password(data: PasswordChangeIn, user: dict = Depends(get_current_user)):
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            # التحقق من كلمة المرور القديمة
-            if not pwd_context.verify(data.old_password, user['password_hash']):
-                raise HTTPException(400, "كلمة المرور الحالية غير صحيحة")
-            
-            # تحديث كلمة المرور
-            new_hash = pwd_context.hash(data.new_password)
-            cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user['id']))
-            conn.commit()
-            return {"status": "success", "message": "تم تغيير كلمة المرور بنجاح"}
 
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
