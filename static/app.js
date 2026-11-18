@@ -2,15 +2,24 @@ const API_URL = "/api"; let cart = []; let html5QrCode = null; let purchaseCart 
 function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
 function getAuthHeaders() { const token = localStorage.getItem('kodnaqi_token'); return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
 
+
 async function apiFetch(url, options = {}) {
-    options.headers = { ...getAuthHeaders(), ...options.headers };
-    const res = await fetch(url, options);
-    if (res.status === 401 || res.status === 403) {
-        if(res.status === 401) { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
-        else { const data = await res.json(); showAlert("ممنوع", data.detail || "ليس لديك صلاحية", "error"); throw new Error("Forbidden"); }
+    const loader = document.getElementById('loading-overlay');
+    if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
+    
+    try {
+        options.headers = { ...getAuthHeaders(), ...options.headers };
+        const res = await fetch(url, options);
+        if (res.status === 401 || res.status === 403) {
+            if(res.status === 401) { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
+            else { const data = await res.json(); showAlert("ممنوع", data.detail || "ليس لديك صلاحية", "error"); throw new Error("Forbidden"); }
+        }
+        return res;
+    } finally {
+        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
     }
-    return res;
 }
+
 
 let isLoginMode = true;
 function toggleAuthMode() {
@@ -206,3 +215,29 @@ function stopScanner() { if (html5QrCode) { html5QrCode.stop().then(() => { docu
 async function findMedicineByBarcode(barcode) { try { const res = await apiFetch(`${API_URL}/medicines/barcode/${barcode}`); if (res.ok) { const med = await res.json(); addToCart(med.id, med.name, med.price); showAlert("تمت الإضافة", `تم إضافة <b>${med.name}</b>.`, "success"); } else showAlert("غير موجود", `لا يوجد دواء بالباركود: ${barcode}`, "error"); } catch (err) { console.error(err); } }
 
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered'))); }
+
+
+async function downloadBackup(type) {
+    try {
+        const loader = document.getElementById('loading-overlay');
+        if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
+        
+        const res = await fetch(`${API_URL}/backup/${type}`, { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error("Failed");
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `kodnaqi_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
+    } catch (err) {
+        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
+        showAlert("خطأ", "تعذر تحميل الملف", "error");
+    }
+}

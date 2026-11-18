@@ -337,5 +337,42 @@ def update_settings(data: SettingsIn, admin_user: dict = Depends(check_admin)):
             conn.commit()
             return dict(cur.fetchone())
 
+
+import csv
+from io import StringIO
+from fastapi.responses import Response
+
+@app.get("/api/backup/sales")
+def export_sales_csv(admin_user: dict = Depends(check_admin)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT invoice_number, sale_date, total_amount, discount, paid_amount FROM sales ORDER BY id DESC")
+            sales = cur.fetchall()
+    
+    output = StringIO()
+    output.write('﻿') # لدعم اللغة العربية في الإكسيل
+    writer = csv.writer(output)
+    writer.writerow(["Invoice Number", "Date", "Total Amount", "Discount", "Paid Amount"])
+    for s in sales:
+        writer.writerow([s["invoice_number"], s["sale_date"], s["total_amount"], s["discount"], s["paid_amount"]])
+    
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=kodnaqi_sales.csv"})
+
+@app.get("/api/backup/medicines")
+def export_medicines_csv(admin_user: dict = Depends(check_admin)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT name, barcode, category, price, cost, stock_quantity, expiry_date FROM medicines ORDER BY name")
+            meds = cur.fetchall()
+            
+    output = StringIO()
+    output.write('﻿')
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Barcode", "Category", "Price", "Cost", "Stock", "Expiry Date"])
+    for m in meds:
+        writer.writerow([m["name"], m["barcode"], m["category"], m["price"], m["cost"], m["stock_quantity"], m["expiry_date"]])
+        
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=kodnaqi_inventory.csv"})
+
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

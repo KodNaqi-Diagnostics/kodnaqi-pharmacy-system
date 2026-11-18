@@ -173,7 +173,28 @@
                         <button type="submit" class="w-full bg-blue-50 text-blue-600 py-3 rounded-xl font-bold">تحديث كلمة المرور</button>
                     </form>
                 </div>
-                <div class="bg-card rounded-3xl premium-shadow overflow-hidden"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div>
+                
+                <!-- النسخ الاحتياطي -->
+                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4">
+                    <div class="p-4 border-b border-gray-100">
+                        <h3 class="font-bold text-primary flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4zm0 5c0 2.21 3.582 4 8 4s8-1.79 8-4"></path></svg>
+                            النسخ الاحتياطي والبيانات
+                        </h3>
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        <button onclick="downloadBackup('sales')" class="w-full p-4 flex items-center justify-between text-gray-700 hover:bg-gray-50 transition">
+                            <span class="font-bold text-sm">تصدير المبيعات (Excel)</span>
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                        <button onclick="downloadBackup('medicines')" class="w-full p-4 flex items-center justify-between text-gray-700 hover:bg-gray-50 transition">
+                            <span class="font-bold text-sm">تصدير المخزون (Excel)</span>
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-card rounded-3xl premium-shadow overflow-hidden mt-4"><button onclick="handleLogout()" class="w-full p-4 text-red-600 font-bold text-sm">تسجيل الخروج</button></div>
             </div>
         </main>
 
@@ -205,6 +226,15 @@
         <div class="text-center text-xs mt-8 border-t border-black border-dashed pt-2">
             <p>توقيع الكاشير: ........................</p>
             <p class="mt-4">توقيع المدير: ........................</p>
+        </div>
+    </div>
+
+    
+    <!-- شاشة التحميل -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-[200]">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <p class="mt-4 font-bold text-primary text-sm">جاري المعالجة...</p>
         </div>
     </div>
 
