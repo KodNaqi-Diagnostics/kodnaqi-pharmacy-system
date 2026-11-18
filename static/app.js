@@ -29,140 +29,21 @@ function playVaultSound(type) {
 }
 
 
-function toggleRadialMenu() {
-    const menu = document.getElementById('radial-menu');
-    const overlay = document.getElementById('radial-overlay');
-    const fabMain = document.getElementById('fab-main');
-    
-    const isOpen = menu.classList.contains('open');
-    
-    if (!isOpen) {
-        menu.classList.add('open');
-        overlay.classList.add('active');
-        fabMain.classList.add('active');
-        fabMain.innerHTML = '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-        
-        // تشغيل صوت التكات عند الفتح
-        setTimeout(() => playVaultSound('tick'), 50);
-        setTimeout(() => playVaultSound('tick'), 100);
-        setTimeout(() => playVaultSound('tick'), 150);
-    } else {
-        menu.classList.remove('open');
-        overlay.classList.remove('active');
-        fabMain.classList.remove('active');
-        
-        const activeBtn = document.querySelector('.radial-item.active-tab');
-        fabMain.innerHTML = activeBtn ? activeBtn.innerHTML : '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
-        
-        // تشغيل صوت القفل عند الإغلاق
-        playVaultSound('lock');
-    }
-}
-
-// إغلاق القائمة تلقائياً عند التمرير
-window.addEventListener('scroll', () => {
-    const menu = document.getElementById('radial-menu');
-    if (menu && menu.classList.contains('open')) {
-        toggleRadialMenu();
-    }
-});
-
-const API_URL = "/api"; let cart = []; let html5QrCode = null; let purchaseCart = [];
-function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
-function getAuthHeaders() { const token = localStorage.getItem('kodnaqi_token'); return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
-
-
-async function apiFetch(url, options = {}) {
-    const loader = document.getElementById('loading-overlay');
-    if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
-    
-    try {
-        options.headers = { ...getAuthHeaders(), ...options.headers };
-        const res = await fetch(url, options);
-        if (res.status === 401 || res.status === 403) {
-            if(res.status === 401) { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
-            else { const data = await res.json(); showAlert("ممنوع", data.detail || "ليس لديك صلاحية", "error"); throw new Error("Forbidden"); }
-        }
-        return res;
-    } finally {
-        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
-    }
-}
-
-
-let isLoginMode = true;
-function toggleAuthMode() {
-    isLoginMode = !isLoginMode;
-    const loginBox = document.getElementById('login-form-box'); const regBox = document.getElementById('register-form-box');
-    const title = document.getElementById('auth-title'); const subtitle = document.getElementById('auth-subtitle'); const toggleBtn = document.getElementById('toggle-auth-btn');
-    if (isLoginMode) { loginBox.classList.remove('hidden'); regBox.classList.add('hidden'); title.innerText = "مرحباً بك مجدداً"; subtitle.innerText = "سجل الدخول لإدارة صيدليتك"; toggleBtn.innerText = "ليس لديك حساب؟ إنشاء حساب جديد"; } 
-    else { loginBox.classList.add('hidden'); regBox.classList.remove('hidden'); title.innerText = "حساب جديد"; subtitle.innerText = "أنشئ حسابك لإدارة صيدليتك"; toggleBtn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول"; }
-}
-
-async function handleRegister() {
-    const user = document.getElementById('reg-user').value; const pass = document.getElementById('reg-pass').value; const confirmPass = document.getElementById('reg-pass-confirm').value;
-    if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error"); if(pass !== confirmPass) return showAlert("خطأ", "كلمتا المرور غير متطابقتين", "error");
-    try {
-        const res = await fetch(`${API_URL}/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
-        const data = await res.json();
-        if (res.ok) { await showAlert("تم بنجاح", "تم إنشاء الحساب، يمكنك الآن تسجيل الدخول.", "success"); toggleAuthMode(); document.getElementById('login-user').value = user; } 
-        else { showAlert("خطأ", data.detail || "حدث خطأ", "error"); }
-    } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); }
-}
-
-window.addEventListener('load', () => { setTimeout(() => { const splash = document.getElementById('splash-screen'); if (splash) { splash.style.opacity = '0'; setTimeout(() => { splash.style.display = 'none'; if (localStorage.getItem('kodnaqi_token')) { showApp(); } else { const login = document.getElementById('login-screen'); if(login) { login.classList.remove('hidden'); login.classList.add('flex'); } } }, 500); } }, 2000); });
-
-async function handleLogin() { 
-    const user = document.getElementById('login-user').value; const pass = document.getElementById('login-pass').value; if(!user || !pass) return showAlert("تنبيه", "أدخل البيانات", "error"); 
-    try { 
-        const res = await fetch(`${API_URL}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) }); 
-        const data = await res.json(); 
-        if (res.ok) { localStorage.setItem('kodnaqi_token', data.access_token); localStorage.setItem('kodnaqi_role', data.role); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('flex'); showApp(); } 
-        else { showAlert("خطأ", data.detail || "بيانات غير صحيحة", "error"); } 
-    } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } 
-}
-
-function handleLogout() { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
-
-
-function showApp() { 
-    const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); 
-    const role = localStorage.getItem('kodnaqi_role');
-    const adminTabs = ['dashboard', 'inventory', 'purchases', 'suppliers', 'users', 'settings'];
-    
-    if (role !== 'admin') {
-        document.body.classList.add('role-cashier');
-        switchTab('pos');
-    } else {
-        document.body.classList.remove('role-cashier');
-        switchTab('dashboard');
-    }
-}
-
-
 
 function switchTab(tabId) { 
     ['dashboard', 'pos', 'inventory', 'history', 'purchases', 'suppliers', 'users', 'settings'].forEach(id => { 
         const view = document.getElementById(`view-${id}`); 
-        const btn = document.getElementById(`fab-${id}`); 
+        const btn = document.getElementById(`btn-${id}`); 
         if(view) view.classList.add('hidden'); 
-        if(btn) btn.classList.remove('active-tab');
+        if(btn) btn.className = "flex flex-col items-center p-2 text-gray-400 hover:text-primary min-w-[70px] transition-all"; 
     }); 
     
     const activeView = document.getElementById(`view-${tabId}`); 
-    const activeBtn = document.getElementById(`fab-${tabId}`); 
+    const activeBtn = document.getElementById(`btn-${tabId}`); 
     
     if(activeView) activeView.classList.remove('hidden'); 
-    if(activeBtn) activeBtn.classList.add('active-tab'); 
+    if(activeBtn) activeBtn.className = "flex flex-col items-center p-2 text-primary min-w-[70px] transition-all"; 
     
-    // تحديث أيقونة الزر الرئيسي لتطابق التبويب الحالي
-    const fabMain = document.getElementById('fab-main');
-    if (fabMain && activeBtn) {
-        fabMain.innerHTML = activeBtn.innerHTML;
-        // إضافة كلاس يوضح أن الزر يفتح القائمة (سهم صغير)
-        fabMain.innerHTML += '<div class="absolute bottom-1 right-1 w-3 h-3 bg-white rounded-full border border-gray-300"></div>';
-    }
-
     const titles = { dashboard: 'الرئيسية', pos: 'الكاشير', inventory: 'المخزون', history: 'السجلات', purchases: 'المشتريات', suppliers: 'الموردين', users: 'الموظفين', settings: 'الإعدادات' }; 
     const titleEl = document.getElementById('current-tab-title'); 
     if(titleEl) titleEl.innerText = titles[tabId]; 
@@ -175,6 +56,7 @@ function switchTab(tabId) {
     if (tabId === 'users') loadUsers(); 
     if (tabId === 'settings') fetchSettingsForForm(); 
 }
+
 
 
 function showAlert(title, message, type = 'success') { return new Promise((resolve) => { const modal = document.getElementById('app-modal'); const content = document.getElementById('modal-content'); const iconDiv = document.getElementById('modal-icon'); const input = document.getElementById('modal-input'); const cancelBtn = document.getElementById('modal-cancel'); const confirmBtn = document.getElementById('modal-confirm'); if(!modal) return resolve(true); input.classList.add('hidden'); cancelBtn.classList.add('hidden'); confirmBtn.innerText = 'حسناً'; if (type === 'error') { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4"; iconDiv.innerHTML = '<span class="text-3xl">❌</span>'; confirmBtn.className = "flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200"; } else { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"; iconDiv.innerHTML = '<span class="text-3xl text-primary">✅</span>'; confirmBtn.className = "flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30"; } document.getElementById('modal-title').innerText = title; document.getElementById('modal-message').innerHTML = message; modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => content.classList.remove('scale-95'), 10); confirmBtn.onclick = () => { content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200); resolve(true); }; }); }
