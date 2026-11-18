@@ -241,6 +241,7 @@ async function checkout() { if (cart.length === 0) return showAlert("تنبيه"
 
 // Sync & History
 
+
 async function processOutbox() { 
     if(!navigator.onLine) return; 
     let outbox = await localforage.getItem('kodnaqi_outbox') || []; 
@@ -269,11 +270,17 @@ async function processOutbox() {
         await localforage.setItem('kodnaqi_sales', sales); 
         await localforage.setItem('kodnaqi_outbox', outbox); 
         
-        // التحديث التلقائي للسجلات إذا كنا نقف على شاشتها
+        // التحديث التلقائي للسجلات إذا كنا نقف على شاشتها لإخفاء كلمة (معلق) فوراً
         const historyView = document.getElementById('view-history');
         if (historyView && !historyView.classList.contains('hidden')) {
             loadHistory();
         }
+        // تحديث لوحة التحكم أيضاً لتحديث الأرقام
+        const dashboardView = document.getElementById('view-dashboard');
+        if (dashboardView && !dashboardView.classList.contains('hidden')) {
+            loadDashboard();
+        }
     } 
 }
+
 
