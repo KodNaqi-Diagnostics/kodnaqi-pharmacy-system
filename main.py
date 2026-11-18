@@ -299,5 +299,43 @@ def get_stats(admin_user: dict = Depends(check_admin)):
                 "expired_alerts": [dict(r) for r in expired]
             }
 
+
+# --- Z-Report ---
+@app.get("/api/z-report")
+def get_z_report(user: dict = Depends(get_current_user)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")
+            today_sales = cur.fetchone()
+            cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
+            profit = cur.fetchone()
+            return {
+                "date": str(datetime.now().date()),
+                "total_sales": today_sales["total"] or 0,
+                "total_invoices": today_sales["count"] or 0,
+                "total_profit": profit["total_profit"] or 0
+            }
+
+# --- Settings ---
+@app.get("/api/settings")
+def get_settings(user: dict = Depends(get_current_user)):
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT * FROM settings WHERE id=1")
+            return dict(cur.fetchone())
+
+@app.put("/api/settings")
+def update_settings(data: SettingsIn, admin_user: dict = Depends(check_admin)):
+    updates, values = [], []
+    if data.pharmacy_name: updates.append("pharmacy_name = %s"); values.append(data.pharmacy_name)
+    if data.currency: updates.append("currency = %s"); values.append(data.currency)
+    if not updates: return {"status": "no changes"}
+    updates.append("updated_at = %s"); values.append(now_iso()); values.append(1)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(f"UPDATE settings SET {', '.join(updates)} WHERE id = %s RETURNING *", tuple(values))
+            conn.commit()
+            return dict(cur.fetchone())
+
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
