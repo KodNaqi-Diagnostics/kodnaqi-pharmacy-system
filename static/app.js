@@ -1,3 +1,20 @@
+
+function toggleRadialMenu() {
+    const menu = document.getElementById('radial-menu');
+    const overlay = document.getElementById('radial-overlay');
+    const fabMain = document.getElementById('fab-main');
+    
+    menu.classList.toggle('open');
+    overlay.classList.toggle('active');
+    fabMain.classList.toggle('active');
+    
+    // تغيير أيقونة الزر الرئيسي (X عند الفتح)
+    if (menu.classList.contains('open')) {
+        fabMain.innerHTML = '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+    } else {
+        fabMain.innerHTML = '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
+    }
+}
 const API_URL = "/api"; let cart = []; let html5QrCode = null; let purchaseCart = [];
 function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
 function getAuthHeaders() { const token = localStorage.getItem('kodnaqi_token'); return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
@@ -55,30 +72,49 @@ async function handleLogin() {
 
 function handleLogout() { localStorage.removeItem('kodnaqi_token'); localStorage.removeItem('kodnaqi_role'); window.location.reload(); }
 
+
 function showApp() { 
     const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); 
     const role = localStorage.getItem('kodnaqi_role');
-    const adminTabs = ['btn-dashboard', 'btn-inventory', 'btn-purchases', 'btn-suppliers', 'btn-settings', 'btn-users'];
+    const adminTabs = ['dashboard', 'inventory', 'purchases', 'suppliers', 'users', 'settings'];
+    
     if (role !== 'admin') {
-        adminTabs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        document.body.classList.add('role-cashier');
         switchTab('pos');
     } else {
-        adminTabs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; });
+        document.body.classList.remove('role-cashier');
         switchTab('dashboard');
     }
 }
 
+
+
 function switchTab(tabId) { 
     ['dashboard', 'pos', 'inventory', 'history', 'purchases', 'suppliers', 'users', 'settings'].forEach(id => { 
-        const view = document.getElementById(`view-${id}`); const btn = document.getElementById(`btn-${id}`); 
+        const view = document.getElementById(`view-${id}`); 
+        const btn = document.getElementById(`fab-${id}`); 
         if(view) view.classList.add('hidden'); 
-        if(btn) btn.className = "flex flex-col items-center p-2 text-gray-400 hover:text-primary min-w-[60px] transition-all"; 
+        if(btn) btn.classList.remove('active-tab');
     }); 
-    const activeView = document.getElementById(`view-${tabId}`); const activeBtn = document.getElementById(`btn-${tabId}`); 
+    
+    const activeView = document.getElementById(`view-${tabId}`); 
+    const activeBtn = document.getElementById(`fab-${tabId}`); 
+    
     if(activeView) activeView.classList.remove('hidden'); 
-    if(activeBtn) activeBtn.className = "flex flex-col items-center p-2 text-primary min-w-[60px] transition-all"; 
+    if(activeBtn) activeBtn.classList.add('active-tab'); 
+    
+    // تحديث أيقونة الزر الرئيسي لتطابق التبويب الحالي
+    const fabMain = document.getElementById('fab-main');
+    if (fabMain && activeBtn) {
+        fabMain.innerHTML = activeBtn.innerHTML;
+        // إضافة كلاس يوضح أن الزر يفتح القائمة (سهم صغير)
+        fabMain.innerHTML += '<div class="absolute bottom-1 right-1 w-3 h-3 bg-white rounded-full border border-gray-300"></div>';
+    }
+
     const titles = { dashboard: 'الرئيسية', pos: 'الكاشير', inventory: 'المخزون', history: 'السجلات', purchases: 'المشتريات', suppliers: 'الموردين', users: 'الموظفين', settings: 'الإعدادات' }; 
-    const titleEl = document.getElementById('current-tab-title'); if(titleEl) titleEl.innerText = titles[tabId]; 
+    const titleEl = document.getElementById('current-tab-title'); 
+    if(titleEl) titleEl.innerText = titles[tabId]; 
+    
     if (tabId === 'dashboard') loadDashboard(); 
     if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); } 
     if (tabId === 'history') loadHistory(); 
@@ -87,6 +123,7 @@ function switchTab(tabId) {
     if (tabId === 'users') loadUsers(); 
     if (tabId === 'settings') fetchSettingsForForm(); 
 }
+
 
 function showAlert(title, message, type = 'success') { return new Promise((resolve) => { const modal = document.getElementById('app-modal'); const content = document.getElementById('modal-content'); const iconDiv = document.getElementById('modal-icon'); const input = document.getElementById('modal-input'); const cancelBtn = document.getElementById('modal-cancel'); const confirmBtn = document.getElementById('modal-confirm'); if(!modal) return resolve(true); input.classList.add('hidden'); cancelBtn.classList.add('hidden'); confirmBtn.innerText = 'حسناً'; if (type === 'error') { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4"; iconDiv.innerHTML = '<span class="text-3xl">❌</span>'; confirmBtn.className = "flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200"; } else { iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"; iconDiv.innerHTML = '<span class="text-3xl text-primary">✅</span>'; confirmBtn.className = "flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30"; } document.getElementById('modal-title').innerText = title; document.getElementById('modal-message').innerHTML = message; modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => content.classList.remove('scale-95'), 10); confirmBtn.onclick = () => { content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200); resolve(true); }; }); }
 function showPrompt(title, message, defaultValue) { return new Promise((resolve) => { const modal = document.getElementById('app-modal'); const content = document.getElementById('modal-content'); const iconDiv = document.getElementById('modal-icon'); const input = document.getElementById('modal-input'); const cancelBtn = document.getElementById('modal-cancel'); const confirmBtn = document.getElementById('modal-confirm'); if(!modal) return resolve(null); iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4"; iconDiv.innerHTML = '<span class="text-3xl">💵</span>'; confirmBtn.className = "flex-1 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30"; confirmBtn.innerText = 'تأكيد الدفع'; document.getElementById('modal-title').innerText = title; document.getElementById('modal-message').innerText = message; input.classList.remove('hidden'); input.value = defaultValue; input.focus(); cancelBtn.classList.remove('hidden'); modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => content.classList.remove('scale-95'), 10); confirmBtn.onclick = () => { const val = input.value; close(); resolve(val); }; cancelBtn.onclick = () => { close(); resolve(null); }; function close() { content.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200); } }); }
@@ -203,41 +240,40 @@ function renderCart() { const cartDiv = document.getElementById('cart-items'); c
 async function checkout() { if (cart.length === 0) return showAlert("تنبيه", "الفاتورة فارغة.", "error"); let total = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0); const paid = await showPrompt("الدفع", `الإجمالي المطلوب: ${formatCurrency(total)} SDG`, total); if (paid === null || paid === "") return; const paidAmount = parseFloat(paid); if (isNaN(paidAmount) || paidAmount < total) return showAlert("خطأ", "المبلغ غير كافٍ!", "error"); const localId = Date.now(); const saleData = { id: localId, discount: 0, paid_amount: paidAmount, items: cart.map(i => ({ medicine_id: i.medicine_id, quantity: i.quantity, unit_price: i.unit_price })), invoice_number: `OFF-${localId.toString().slice(-6)}`, sale_date: new Date().toISOString() }; let sales = await localforage.getItem('kodnaqi_sales') || []; sales.unshift(saleData); await localforage.setItem('kodnaqi_sales', sales); let outbox = await localforage.getItem('kodnaqi_outbox') || []; outbox.push(saleData); await localforage.setItem('kodnaqi_outbox', outbox); const change = paidAmount - total; preparePrintInvoice(saleData.invoice_number, cart, total, paidAmount, change); let msg = `رقم الفاتورة: <b>${saleData.invoice_number}</b><br>الباقي: <b class="text-primary text-lg">${formatCurrency(change)} SDG</b>`; msg += `<br><br><button onclick="window.print()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-bold w-full">🖨️ طباعة الفاتورة</button>`; await showAlert("تمت العملية", msg, "success"); cart = []; renderCart(); loadMedicines(); processOutbox(); }
 
 // Sync & History
-async function processOutbox() { if(!navigator.onLine) return; let outbox = await localforage.getItem('kodnaqi_outbox') || []; if(outbox.length === 0) return; let sales = await localforage.getItem('kodnaqi_sales') || []; let outboxChanged = false; for (let i = 0; i < outbox.length; i++) { let sale = outbox[i]; let sendData = { discount: sale.discount, paid_amount: sale.paid_amount, items: sale.items.map(item => ({ medicine_id: item.medicine_id, quantity: item.quantity, unit_price: item.unit_price })) }; try { let res = await apiFetch(`${API_URL}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sendData) }); if (res.ok) { let serverData = await res.json(); let localSaleIndex = sales.findIndex(s => s.id == sale.id); if (localSaleIndex !== -1) sales[localSaleIndex].invoice_number = serverData.invoice_number; outbox.splice(i, 1); i--; outboxChanged = true; } else { break; } } catch(e) { break; } } if (outboxChanged) { await localforage.setItem('kodnaqi_sales', sales); await localforage.setItem('kodnaqi_outbox', outbox); } }
-async function loadHistory() { const list = document.getElementById('history-list'); if (!list) return; let localSales = await localforage.getItem('kodnaqi_sales') || []; try { const res = await apiFetch(`${API_URL}/sales`); if(res.ok) { const serverSales = await res.json(); let mergedSales = [...localSales]; serverSales.forEach(ss => { let existingIndex = mergedSales.findIndex(s => s.invoice_number === ss.invoice_number); if(existingIndex !== -1) mergedSales[existingIndex] = { ...mergedSales[existingIndex], ...ss }; else mergedSales.push(ss); }); mergedSales.sort((a,b) => new Date(b.sale_date) - new Date(a.sale_date)); await localforage.setItem('kodnaqi_sales', mergedSales); renderHistoryList(mergedSales, list); } else renderHistoryList(localSales, list); } catch(e) { renderHistoryList(localSales, list); } }
-function renderHistoryList(sales, list) { if (sales.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد فواتير سابقة.</p>'; return; } list.innerHTML = sales.map(sale => { const date = new Date(sale.sale_date).toLocaleString('en-GB'); const isSynced = !sale.invoice_number.startsWith('OFF-'); return `<div class="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition"><div><p class="font-bold text-primary">${sale.invoice_number} ${!isSynced ? '<span class="text-[9px] text-orange-500 bg-orange-50 px-1 rounded">معلق</span>' : ''}</p><p class="text-xs text-gray-400 mt-1">${date}</p></div><div class="text-left flex items-center gap-4"><div><p class="font-bold text-primary">${formatCurrency(sale.total_amount || sale.items.reduce((s,i)=>s+(i.unit_price*i.quantity),0))} SDG</p><p class="text-xs text-gray-400">${sale.items.length} أصناف</p></div><button onclick='reprintInvoice(${JSON.stringify(sale)})' class="bg-blue-50 text-blue-600 p-3 rounded-xl hover:bg-blue-100 transition">🖨️</button></div></div>`; }).join(''); }
 
-// Print & Camera
-function preparePrintInvoice(invNum, items, total, paid, change, originalDate = null) { const nameEl = document.getElementById('print-pharmacy-name'); if(nameEl) nameEl.innerText = document.getElementById('pharmacy-name').innerText; let printDate = originalDate ? new Date(originalDate) : new Date(); document.getElementById('print-date').innerText = `التاريخ: ${printDate.toLocaleDateString('en-GB')} ${printDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'})}`; document.getElementById('print-inv-num').innerText = invNum; document.getElementById('print-items').innerHTML = items.map(item => `<tr class="border-b border-gray-300 border-dashed"><td class="py-2">${item.name}</td><td class="py-2 text-center">${item.quantity}</td><td class="py-2 text-left">${formatCurrency(item.unit_price)}</td><td class="py-2 text-left">${formatCurrency(item.unit_price * item.quantity)}</td></tr>`).join(''); document.getElementById('print-total').innerText = `${formatCurrency(total)} SDG`; document.getElementById('print-paid').innerText = `${formatCurrency(paid)} SDG`; document.getElementById('print-change').innerText = `${formatCurrency(change)} SDG`; if (typeof JsBarcode !== 'undefined') JsBarcode("#print-barcode", invNum, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: false }); document.getElementById('print-inv-text').innerText = invNum; }
-function reprintInvoice(sale) { let total = sale.total_amount || sale.items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0); preparePrintInvoice(sale.invoice_number, sale.items, total, sale.paid_amount, (sale.paid_amount - total), sale.sale_date); setTimeout(() => window.print(), 500); }
-function startScanner() { document.getElementById('reader').classList.remove('hidden'); document.getElementById('stop-btn').classList.remove('hidden'); html5QrCode = new Html5Qrcode("reader"); html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, (decodedText) => { stopScanner(); findMedicineByBarcode(decodedText); }, (e) => {}).catch(err => showAlert("خطأ", "تأكد من صلاحية الكاميرا", "error")); }
-function stopScanner() { if (html5QrCode) { html5QrCode.stop().then(() => { document.getElementById('reader').classList.add('hidden'); document.getElementById('stop-btn').classList.add('hidden'); html5QrCode = null; }); } }
-async function findMedicineByBarcode(barcode) { try { const res = await apiFetch(`${API_URL}/medicines/barcode/${barcode}`); if (res.ok) { const med = await res.json(); addToCart(med.id, med.name, med.price); showAlert("تمت الإضافة", `تم إضافة <b>${med.name}</b>.`, "success"); } else showAlert("غير موجود", `لا يوجد دواء بالباركود: ${barcode}`, "error"); } catch (err) { console.error(err); } }
-
-if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW Registered'))); }
-
-
-async function downloadBackup(type) {
-    try {
-        const loader = document.getElementById('loading-overlay');
-        if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
+async function processOutbox() { 
+    if(!navigator.onLine) return; 
+    let outbox = await localforage.getItem('kodnaqi_outbox') || []; 
+    if(outbox.length === 0) return; 
+    
+    let sales = await localforage.getItem('kodnaqi_sales') || []; 
+    let outboxChanged = false; 
+    
+    for (let i = 0; i < outbox.length; i++) { 
+        let sale = outbox[i]; 
+        let sendData = { discount: sale.discount, paid_amount: sale.paid_amount, items: sale.items.map(item => ({ medicine_id: item.medicine_id, quantity: item.quantity, unit_price: item.unit_price })) }; 
+        try { 
+            let res = await apiFetch(`${API_URL}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sendData) }); 
+            if (res.ok) { 
+                let serverData = await res.json(); 
+                let localSaleIndex = sales.findIndex(s => s.id == sale.id); 
+                if (localSaleIndex !== -1) sales[localSaleIndex].invoice_number = serverData.invoice_number; 
+                outbox.splice(i, 1); 
+                i--; 
+                outboxChanged = true; 
+            } else { break; } 
+        } catch(e) { break; } 
+    } 
+    
+    if (outboxChanged) { 
+        await localforage.setItem('kodnaqi_sales', sales); 
+        await localforage.setItem('kodnaqi_outbox', outbox); 
         
-        const res = await fetch(`${API_URL}/backup/${type}`, { headers: getAuthHeaders() });
-        if (!res.ok) throw new Error("Failed");
-        
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `kodnaqi_${type}_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        
-        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
-    } catch (err) {
-        if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); }
-        showAlert("خطأ", "تعذر تحميل الملف", "error");
-    }
+        // التحديث التلقائي للسجلات إذا كنا نقف على شاشتها
+        const historyView = document.getElementById('view-history');
+        if (historyView && !historyView.classList.contains('hidden')) {
+            loadHistory();
+        }
+    } 
 }
+

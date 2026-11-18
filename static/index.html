@@ -9,7 +9,113 @@
     <script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <link rel="manifest" href="/manifest.json">
     <style>body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; } .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); } @media print { body > * { display: none !important; } #print-area, #z-report-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; } #app-modal { display: none !important; } @page { margin: 5mm; } }</style>
+
+    <style>
+        /* القائمة الدوارة (Radial Menu) */
+        .radial-menu-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .fab-main {
+            width: 64px;
+            height: 64px;
+            background-color: #0b4d3b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(11, 77, 59, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 102;
+            border: 2px solid #ffffff;
+            color: white;
+        }
+
+        .fab-main.active {
+            transform: rotate(45deg);
+            background-color: #dc2626; /* يتحول للأحمر عند الفتح */
+        }
+
+        .radial-items {
+            position: absolute;
+            bottom: 32px;
+            right: 32px;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .radial-item {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            transform: translate(0, 0) scale(0);
+            pointer-events: auto;
+            color: #0b4d3b;
+            border: 2px solid #f2ede4;
+        }
+
+        .radial-item.active-tab {
+            background-color: #0b4d3b;
+            color: white;
+            border-color: #0b4d3b;
+        }
+
+        .radial-menu-container.open .radial-item {
+            opacity: 1;
+        }
+
+        /* توزيع الأزرار في نصف دائرة (180 درجة) */
+        .radial-menu-container.open .radial-item:nth-child(1) { transform: translate(0px, -110px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(2) { transform: translate(-60px, -95px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(3) { transform: translate(-100px, -55px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(4) { transform: translate(-115px, 0px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(5) { transform: translate(-100px, 55px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(6) { transform: translate(-60px, 95px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(7) { transform: translate(0px, 110px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(8) { transform: translate(55px, 95px) scale(1); }
+
+        /* تنسيق شاشة العرض (Overlay) عند فتح القائمة */
+        .radial-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(3px);
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .radial-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* إخفاء الأزرار عند الدخول ككاشير */
+        .role-cashier #fab-dashboard, .role-cashier #fab-inventory, .role-cashier #fab-purchases,
+        .role-cashier #fab-suppliers, .role-cashier #fab-users, .role-cashier #fab-settings {
+            display: none !important;
+        }
+    </style>
 </head>
+
 <body class="text-textMain pb-24">
     <div id="splash-screen" class="fixed inset-0 bg-primary z-[100] flex flex-col items-center justify-center transition-opacity duration-500"><img src="/logo-pharma.png" class="w-48 h-48 object-contain mb-4"><h1 class="text-white text-3xl font-bold tracking-widest font-english mt-2">KodNaqi Pharmacy</h1></div>
     
@@ -198,16 +304,7 @@
             </div>
         </main>
 
-        <nav class="fixed bottom-0 w-full bg-white border-t flex overflow-x-auto py-2 z-20 rounded-t-3xl pb-4 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg><span class="text-[10px] font-bold">الرئيسية</span></button>
-            <button onclick="switchTab('pos')" id="btn-pos" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الكاشير</span></button>
-            <button onclick="switchTab('inventory')" id="btn-inventory" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg><span class="text-[10px] font-bold">المخزون</span></button>
-            <button onclick="switchTab('history')" id="btn-history" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="text-[10px] font-bold">السجلات</span></button>
-            <button onclick="switchTab('purchases')" id="btn-purchases" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">المشتريات</span></button>
-            <button onclick="switchTab('suppliers')" id="btn-suppliers" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg><span class="text-[10px] font-bold">الموردين</span></button>
-            <button onclick="switchTab('users')" id="btn-users" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg><span class="text-[10px] font-bold">الموظفين</span></button>
-            <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center p-2 text-gray-400 min-w-[60px]"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span class="text-[10px] font-bold">الإعدادات</span></button>
-        </nav>
+        
     </div>
     
     <div id="print-area" class="hidden bg-white text-black p-4 w-full max-w-sm mx-auto font-sans text-sm" dir="rtl"><div class="text-center border-b-2 border-black border-dashed pb-2 mb-2"><h2 id="print-pharmacy-name" class="text-xl font-bold mb-1">اسم الصيدلية</h2><p class="text-xs" id="print-date">التاريخ</p><p class="text-xs font-bold mt-1">رقم الفاتورة: <span id="print-inv-num"></span></p></div><table class="w-full text-xs text-right mb-2"><thead><tr class="border-b border-black"><th class="pb-1">الصنف</th><th class="pb-1 text-center">الكمية</th><th class="pb-1 text-left">السعر</th><th class="pb-1 text-left">الإجمالي</th></tr></thead><tbody id="print-items"></tbody></table><div class="border-t-2 border-black border-dashed pt-2 mb-4 space-y-1 text-sm"><div class="flex justify-between font-bold"><span>الإجمالي:</span><span id="print-total"></span></div><div class="flex justify-between"><span>المدفوع:</span><span id="print-paid"></span></div><div class="flex justify-between"><span>الباقي:</span><span id="print-change"></span></div></div><div class="flex flex-col items-center mt-6"><svg id="print-barcode" class="w-full max-w-[200px]"></svg><p class="text-xs mt-1 font-mono" id="print-inv-text"></p></div><div class="text-center text-xs mt-4 border-t border-black border-dashed pt-2"><p>شكراً لزيارتكم!</p></div></div>
@@ -239,6 +336,27 @@
     </div>
 
     <div id="app-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50"><div class="bg-white rounded-2xl shadow-2xl p-6 w-11/12 max-w-sm transform scale-95 transition-transform" id="modal-content"><div id="modal-icon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4"><span class="text-3xl text-primary">✅</span></div><h3 id="modal-title" class="text-xl font-bold text-center mb-2">عنوان</h3><p id="modal-message" class="text-center text-gray-600 mb-6 text-sm">رسالة</p><input type="number" id="modal-input" class="hidden w-full text-center text-2xl font-bold border-2 border-primary rounded-lg p-3 mb-6" dir="ltr"><div class="flex gap-3"><button id="modal-cancel" class="hidden flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold">إلغاء</button><button id="modal-confirm" class="flex-1 bg-primary text-white py-3 rounded-xl font-bold">موافق</button></div></div></div>
+
+    <!-- القائمة الدوارة -->
+    <div class="radial-overlay" id="radial-overlay" onclick="toggleRadialMenu()"></div>
+    
+    <div class="radial-menu-container" id="radial-menu">
+        <div class="radial-items">
+            <div class="radial-item" id="fab-dashboard" onclick="switchTab('dashboard'); toggleRadialMenu()" title="الرئيسية"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg></div>
+            <div class="radial-item" id="fab-pos" onclick="switchTab('pos'); toggleRadialMenu()" title="الكاشير"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+            <div class="radial-item" id="fab-inventory" onclick="switchTab('inventory'); toggleRadialMenu()" title="المخزون"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>
+            <div class="radial-item" id="fab-history" onclick="switchTab('history'); toggleRadialMenu()" title="السجلات"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+            <div class="radial-item" id="fab-purchases" onclick="switchTab('purchases'); toggleRadialMenu()" title="المشتريات"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+            <div class="radial-item" id="fab-suppliers" onclick="switchTab('suppliers'); toggleRadialMenu()" title="الموردين"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+            <div class="radial-item" id="fab-users" onclick="switchTab('users'); toggleRadialMenu()" title="الموظفين"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></div>
+            <div class="radial-item" id="fab-settings" onclick="switchTab('settings'); toggleRadialMenu()" title="الإعدادات"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></div>
+        </div>
+        <div class="fab-main" id="fab-main" onclick="toggleRadialMenu()">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </div>
+    </div>
+    
     <script src="/app.js"></script>
 </body>
+
 </html>
