@@ -9,6 +9,14 @@ const API_URL = window.location.origin + "/api";
 let cart = [];
 let purchaseCart = [];
 let html5QrCode = null;
+let currentUser = {
+    username: localStorage.getItem('kodnaqi_user') || null,
+    role: localStorage.getItem('kodnaqi_role') || 'cashier'
+};
+
+function isAdmin() {
+    return currentUser.role === 'admin';
+}
 
 // --- Web Audio API for Vault Sound ---
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -94,8 +102,34 @@ function showApp() {
     document.getElementById('login-screen')?.classList.add('hidden');
     document.getElementById('login-screen')?.classList.remove('flex');
     document.getElementById('app-content')?.classList.remove('hidden');
+    applyRoleUI();
     switchTab('dashboard');
     loadSettings();
+}
+
+function applyRoleUI() {
+    // إخفاء عناصر المدير عن الكاشير
+    const adminOnlyButtons = ['btn-users'];
+    adminOnlyButtons.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isAdmin()) {
+            el.classList.remove('hidden');
+            el.style.display = '';
+        } else {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
+
+    // إخفاء أزرار النسخ الاحتياطي عن الكاشير إن وجدت
+    document.querySelectorAll('[onclick*="downloadBackup"]').forEach(btn => {
+        if (!isAdmin()) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = '';
+        }
+    });
 }
 
 function toggleAuthMode() {
@@ -142,6 +176,9 @@ async function handleLogin() {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
             localStorage.setItem('kodnaqi_token', data.access_token || data.token);
+            localStorage.setItem('kodnaqi_role', data.role || 'cashier');
+            localStorage.setItem('kodnaqi_user', username);
+            currentUser = { username, role: data.role || 'cashier' };
             playVaultSound('lock');
             showApp();
         } else {
@@ -182,6 +219,9 @@ async function handleRegister() {
 
 function handleLogout() {
     localStorage.removeItem('kodnaqi_token');
+    localStorage.removeItem('kodnaqi_role');
+    localStorage.removeItem('kodnaqi_user');
+    currentUser = { username: null, role: 'cashier' };
     cart = [];
     purchaseCart = [];
     showLoginScreen();
@@ -415,61 +455,88 @@ document.getElementById('change-password-form')?.addEventListener('submit', asyn
 });
 
 async function loadDashboard() {
+    const revEl = document.getElementById('stat-revenue');
+    const countEl = document.getElementById('stat-count');
+    const profitEl = document.getElementById('stat-profit');
+
+    // محاولة جلب الإحصائيات (للمدير)
     try {
         const res = await apiFetch(`${API_URL}/stats`);
-        const data = await res.json();
+        if (res.ok) {
+            const data = await res.json();
+            if (revEl) revEl.innerText = `${formatCurrency(data.today_revenue || 0)} SDG`;
+            if (countEl) countEl.innerText = `${data.today_sales_count || 0} فاتورة`;
+            if (profitEl) profitEl.innerText = `${formatCurrency(data.today_profit || 0)} SDG`;
 
-        const revEl = document.getElementById('stat-revenue');
-        const countEl = document.getElementById('stat-count');
-        const profitEl = document.getElementById('stat-profit');
-
-        if (revEl) revEl.innerText = `${formatCurrency(data.today_revenue || 0)} SDG`;
-        if (countEl) countEl.innerText = `${data.today_sales_count || 0} فاتورة`;
-        if (profitEl) profitEl.innerText = `${formatCurrency(data.today_profit || 0)} SDG`;
-
-        // منتهية الصلاحية
-        const expContainer = document.getElementById('expired-container');
-        const expList = document.getElementById('expired-list');
-        if (expContainer && expList) {
-            if (data.expired_alerts && data.expired_alerts.length > 0) {
-                expContainer.classList.remove('hidden');
-                expList.innerHTML = data.expired_alerts.map(item =>
-                    `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-red-600 font-bold">${item.expiry_date}</span></div>`
-                ).join('');
-            } else {
-                expContainer.classList.add('hidden');
-            }
+            renderAlerts(data);
+            return;
         }
+    } catch (err) {}
 
-        // أوشكت على الانتهاء
-        const exsoonContainer = document.getElementById('expiring-container');
-        const exsoonList = document.getElementById('expiring-list');
-        if (exsoonContainer && exsoonList) {
-            if (data.expiring_soon_alerts && data.expiring_soon_alerts.length > 0) {
-                exsoonContainer.classList.remove('hidden');
-                exsoonList.innerHTML = data.expiring_soon_alerts.map(item =>
-                    `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-orange-600 font-bold">${item.expiry_date}</span></div>`
-                ).join('');
-            } else {
-                exsoonContainer.classList.add('hidden');
-            }
-        }
+    // للكاشير أو عند فشل stats: حساب مبسط من المبيعات
+    try {
+        const res = await apiFetch(`${API_URL}/sales`);
+        const sales = res.ok ? await res.json() : [];
+        const today = new Date().toISOString().slice(0, 10);
+        const todaySales = (sales || []).filter(s => (s.sale_date || '').startsWith(today));
+        const revenue = todaySales.reduce((sum, s) => sum + (s.total_amount || s.paid_amount || 0), 0);
 
-        // نقص المخزون
-        const lowContainer = document.getElementById('lowstock-container');
-        const lowList = document.getElementById('lowstock-list');
-        if (lowContainer && lowList) {
-            if (data.low_stock_alerts && data.low_stock_alerts.length > 0) {
-                lowContainer.classList.remove('hidden');
-                lowList.innerHTML = data.low_stock_alerts.map(item =>
-                    `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-yellow-700 font-bold">متبقي: ${item.stock_quantity}</span></div>`
-                ).join('');
-            } else {
-                lowContainer.classList.add('hidden');
-            }
-        }
+        if (revEl) revEl.innerText = `${formatCurrency(revenue)} SDG`;
+        if (countEl) countEl.innerText = `${todaySales.length} فاتورة`;
+        if (profitEl) profitEl.innerText = isAdmin() ? `${formatCurrency(0)} SDG` : '—';
+
+        // إخفاء تنبيهات المدير عن الكاشير إن لم تتوفر
+        ['expired-container', 'expiring-container', 'lowstock-container'].forEach(id => {
+            document.getElementById(id)?.classList.add('hidden');
+        });
     } catch (err) {
-        console.log("Offline Dashboard");
+        if (revEl) revEl.innerText = '0 SDG';
+        if (countEl) countEl.innerText = '0 فاتورة';
+        if (profitEl) profitEl.innerText = '0 SDG';
+    }
+}
+
+function renderAlerts(data) {
+    // منتهية الصلاحية
+    const expContainer = document.getElementById('expired-container');
+    const expList = document.getElementById('expired-list');
+    if (expContainer && expList) {
+        if (data.expired_alerts && data.expired_alerts.length > 0) {
+            expContainer.classList.remove('hidden');
+            expList.innerHTML = data.expired_alerts.map(item =>
+                `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-red-600 font-bold">${item.expiry_date}</span></div>`
+            ).join('');
+        } else {
+            expContainer.classList.add('hidden');
+        }
+    }
+
+    // أوشكت على الانتهاء
+    const exsoonContainer = document.getElementById('expiring-container');
+    const exsoonList = document.getElementById('expiring-list');
+    if (exsoonContainer && exsoonList) {
+        if (data.expiring_soon_alerts && data.expiring_soon_alerts.length > 0) {
+            exsoonContainer.classList.remove('hidden');
+            exsoonList.innerHTML = data.expiring_soon_alerts.map(item =>
+                `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-orange-600 font-bold">${item.expiry_date}</span></div>`
+            ).join('');
+        } else {
+            exsoonContainer.classList.add('hidden');
+        }
+    }
+
+    // نقص المخزون
+    const lowContainer = document.getElementById('lowstock-container');
+    const lowList = document.getElementById('lowstock-list');
+    if (lowContainer && lowList) {
+        if (data.low_stock_alerts && data.low_stock_alerts.length > 0) {
+            lowContainer.classList.remove('hidden');
+            lowList.innerHTML = data.low_stock_alerts.map(item =>
+                `<div class="flex justify-between text-sm py-1"><span>${item.name}</span><span class="text-yellow-700 font-bold">متبقي: ${item.stock_quantity}</span></div>`
+            ).join('');
+        } else {
+            lowContainer.classList.add('hidden');
+        }
     }
 }
 
@@ -477,11 +544,26 @@ async function loadDashboard() {
 // Users
 // ============================================================
 async function loadUsers() {
+    const list = document.getElementById('users-list');
+    if (!list) return;
+
+    if (!isAdmin()) {
+        list.innerHTML = '<p class="text-gray-400 text-center py-6">هذه الصفحة متاحة للمدير فقط</p>';
+        return;
+    }
+
     try {
         const res = await apiFetch(`${API_URL}/users`);
+        if (!res.ok) {
+            list.innerHTML = '<p class="text-gray-400 text-center py-6">تعذر تحميل الموظفين</p>';
+            return;
+        }
         const users = await res.json();
-        const list = document.getElementById('users-list');
-        if (!list) return;
+
+        if (!users || users.length === 0) {
+            list.innerHTML = '<p class="text-gray-400 text-center py-6">لا يوجد موظفون بعد</p>';
+            return;
+        }
 
         list.innerHTML = users.map(u => `
             <div class="flex justify-between items-center p-3 border-b border-gray-100">
@@ -493,7 +575,7 @@ async function loadUsers() {
             </div>
         `).join('');
     } catch (err) {
-        console.error(err);
+        list.innerHTML = '<p class="text-gray-400 text-center py-6">تعذر تحميل الموظفين</p>';
     }
 }
 
@@ -612,39 +694,47 @@ async function loadMedicines() {
         // قائمة الكاشير
         const posList = document.getElementById('medicines-list');
         if (posList) {
-            posList.innerHTML = (medicines || []).map(med => `
-                <div onclick="addToCart(${med.id}, '${(med.name || '').replace(/'/g, "\\'")}', ${med.price || 0})"
-                     class="cursor-pointer flex justify-between items-center p-3 border-b border-gray-100 hover:bg-primary/5 transition rounded-xl">
-                    <div>
-                        <p class="font-bold text-gray-800 text-sm">${med.name}</p>
+            if (!medicines || medicines.length === 0) {
+                posList.innerHTML = '<p class="text-gray-400 text-center py-6 text-sm">لا توجد أدوية بعد. أضف أدوية من شاشة المخزون.</p>';
+            } else {
+                posList.innerHTML = medicines.map(med => `
+                    <div onclick="addToCart(${med.id}, '${(med.name || '').replace(/'/g, "\\'")}', ${med.price || 0})"
+                         class="cursor-pointer flex justify-between items-center p-3 border-b border-gray-100 hover:bg-primary/5 transition rounded-xl">
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">${med.name}</p>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p>
+                            <p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
+                        </div>
                     </div>
-                    <div class="text-left">
-                        <p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p>
-                        <p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
-                    </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
         }
 
         // قائمة المخزون
         const invList = document.getElementById('inventory-list');
         if (invList) {
-            invList.innerHTML = (medicines || []).map(med => `
-                <div class="flex justify-between items-center p-3 border-b border-gray-100">
-                    <div class="flex-1">
-                        <p class="font-bold text-primary text-sm">${med.name}</p>
-                        <p class="text-xs text-gray-500">${med.category || ''} | ${med.supplier_name || 'بدون مورد'}</p>
+            if (!medicines || medicines.length === 0) {
+                invList.innerHTML = '<p class="text-gray-400 text-center py-6 text-sm">لا توجد أدوية. أضف أول دواء من النموذج أعلاه.</p>';
+            } else {
+                invList.innerHTML = medicines.map(med => `
+                    <div class="flex justify-between items-center p-3 border-b border-gray-100">
+                        <div class="flex-1">
+                            <p class="font-bold text-primary text-sm">${med.name}</p>
+                            <p class="text-xs text-gray-500">${med.category || ''} | ${med.supplier_name || 'بدون مورد'}</p>
+                        </div>
+                        <div class="text-left mr-3">
+                            <p class="font-bold text-sm">${formatCurrency(med.price)} SDG</p>
+                            <p class="text-xs text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick='editMedicine(${JSON.stringify(med).replace(/'/g, "&#39;")})' class="bg-blue-50 text-blue-600 p-2 rounded-lg text-sm">✏️</button>
+                            <button onclick="deleteMedicine(${med.id})" class="bg-red-50 text-red-600 p-2 rounded-lg text-sm">🗑️</button>
+                        </div>
                     </div>
-                    <div class="text-left mr-3">
-                        <p class="font-bold text-sm">${formatCurrency(med.price)} SDG</p>
-                        <p class="text-xs text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick='editMedicine(${JSON.stringify(med).replace(/'/g, "&#39;")})' class="bg-blue-50 text-blue-600 p-2 rounded-lg text-sm">✏️</button>
-                        <button onclick="deleteMedicine(${med.id})" class="bg-red-50 text-red-600 p-2 rounded-lg text-sm">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
         }
 
         await localforage.setItem('kodnaqi_medicines', medicines || []);
@@ -1161,6 +1251,9 @@ async function printZReport() {
 }
 
 async function downloadBackup(type) {
+    if (!isAdmin()) {
+        return showAlert("تنبيه", "التصدير متاح للمدير فقط", "error");
+    }
     try {
         const endpoint = type === 'sales' ? '/backup/sales' : '/backup/medicines';
         const res = await apiFetch(`${API_URL}${endpoint}`);
@@ -1234,13 +1327,10 @@ function stopScanner() {
 // INIT
 // ============================================================
 async function initApp() {
-    // إخفاء الـ Splash بعد تحميل قصير
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash && !splash.classList.contains('hidden')) {
-            // سيتم إخفاؤها من showApp أو showLoginScreen
-        }
-    }, 600);
+    currentUser = {
+        username: localStorage.getItem('kodnaqi_user') || null,
+        role: localStorage.getItem('kodnaqi_role') || 'cashier'
+    };
 
     const token = localStorage.getItem('kodnaqi_token');
     if (token) {
@@ -1248,13 +1338,13 @@ async function initApp() {
             const res = await apiFetch(`${API_URL}/settings`);
             if (res.ok) {
                 showApp();
-                // مزامنة المبيعات المعلقة
                 processOutbox();
                 return;
             }
         } catch (e) {
-            // التوكن غير صالح
             localStorage.removeItem('kodnaqi_token');
+            localStorage.removeItem('kodnaqi_role');
+            localStorage.removeItem('kodnaqi_user');
         }
     }
     showLoginScreen();
