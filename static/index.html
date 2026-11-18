@@ -11,6 +11,7 @@
     <style>body { font-family: 'Tajawal', sans-serif; background-color: #f2ede4; color: #1a202c; } .premium-shadow { box-shadow: 0 4px 25px rgba(0,0,0,0.03); } @media print { body > * { display: none !important; } #print-area, #z-report-area { display: block !important; margin: 0 auto !important; padding: 10px; width: 100%; max-width: 80mm; color: #000 !important; background: #fff !important; } #app-modal { display: none !important; } @page { margin: 5mm; } }</style>
 
     
+    
     <style>
         /* القائمة الدوارة (Radial Menu) */
         .radial-menu-container {
@@ -45,7 +46,7 @@
 
         .radial-items {
             position: absolute;
-            bottom: 28px; /* نصف حجم الزر */
+            bottom: 28px;
             right: 28px;
             width: 0;
             height: 0;
@@ -54,7 +55,7 @@
 
         .radial-item {
             position: absolute;
-            top: -24px; left: -24px; /* نصف حجم الأيقونة 48px */
+            top: -24px; left: -24px;
             width: 48px;
             height: 48px;
             background-color: white;
@@ -82,21 +83,21 @@
             opacity: 1;
         }
 
-        /* توزيع الأزرار في نصف دائرة (تجاه الشاشة) */
-        .radial-menu-container.open .radial-item:nth-child(1) { transform: translate(0px, -100px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(2) { transform: translate(-45px, -90px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(3) { transform: translate(-80px, -60px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(4) { transform: translate(-100px, 0px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(5) { transform: translate(-80px, 60px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(6) { transform: translate(-45px, 90px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(7) { transform: translate(0px, 100px) scale(1); }
-        .radial-menu-container.open .radial-item:nth-child(8) { transform: translate(45px, 90px) scale(1); }
+        /* توزيع الأزرار في قوس دقيق (نصف قطر 90 بكسل) */
+        .radial-menu-container.open .radial-item:nth-child(1) { transform: translate(0px, -90px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(2) { transform: translate(-40px, -80px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(3) { transform: translate(-70px, -55px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(4) { transform: translate(-88px, -20px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(5) { transform: translate(-88px, 20px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(6) { transform: translate(-70px, 55px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(7) { transform: translate(-40px, 80px) scale(1); }
+        .radial-menu-container.open .radial-item:nth-child(8) { transform: translate(0px, 90px) scale(1); }
 
         .radial-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(3px);
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(2px);
             z-index: 999;
             opacity: 0;
             pointer-events: none;
@@ -113,6 +114,7 @@
         }
     </style>
 </head>
+
 
 
 <body class="text-textMain pb-24">

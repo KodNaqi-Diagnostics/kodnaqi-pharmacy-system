@@ -1,20 +1,72 @@
 
+// --- Web Audio API for Vault Sound ---
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContextClass();
+
+function playVaultSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+
+    if (type === 'tick') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1600, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.02);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.02);
+    } else if (type === 'lock') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.08);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.08);
+    }
+}
+
+
 function toggleRadialMenu() {
     const menu = document.getElementById('radial-menu');
     const overlay = document.getElementById('radial-overlay');
     const fabMain = document.getElementById('fab-main');
     
-    menu.classList.toggle('open');
-    overlay.classList.toggle('active');
-    fabMain.classList.toggle('active');
+    const isOpen = menu.classList.contains('open');
     
-    // تغيير أيقونة الزر الرئيسي (X عند الفتح)
-    if (menu.classList.contains('open')) {
+    if (!isOpen) {
+        menu.classList.add('open');
+        overlay.classList.add('active');
+        fabMain.classList.add('active');
         fabMain.innerHTML = '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+        
+        // تشغيل صوت التكات عند الفتح
+        setTimeout(() => playVaultSound('tick'), 50);
+        setTimeout(() => playVaultSound('tick'), 100);
+        setTimeout(() => playVaultSound('tick'), 150);
     } else {
-        fabMain.innerHTML = '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
+        menu.classList.remove('open');
+        overlay.classList.remove('active');
+        fabMain.classList.remove('active');
+        
+        const activeBtn = document.querySelector('.radial-item.active-tab');
+        fabMain.innerHTML = activeBtn ? activeBtn.innerHTML : '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
+        
+        // تشغيل صوت القفل عند الإغلاق
+        playVaultSound('lock');
     }
 }
+
+// إغلاق القائمة تلقائياً عند التمرير
+window.addEventListener('scroll', () => {
+    const menu = document.getElementById('radial-menu');
+    if (menu && menu.classList.contains('open')) {
+        toggleRadialMenu();
+    }
+});
+
 const API_URL = "/api"; let cart = []; let html5QrCode = null; let purchaseCart = [];
 function formatCurrency(num) { return Number(num).toLocaleString('en-US'); }
 function getAuthHeaders() { const token = localStorage.getItem('kodnaqi_token'); return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
