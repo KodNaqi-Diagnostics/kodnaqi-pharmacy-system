@@ -92,19 +92,42 @@ async function loadSettings() { try { const res = await apiFetch(`${API_URL}/set
 async function fetchSettingsForForm() { try { const res = await apiFetch(`${API_URL}/settings`); const data = await res.json(); if(document.getElementById('set-name')) document.getElementById('set-name').value = data.pharmacy_name; if(document.getElementById('set-currency')) document.getElementById('set-currency').value = data.currency; } catch (err) { console.error(err); } }
 document.getElementById('settings-form')?.addEventListener('submit', async (e) => { e.preventDefault(); try { const res = await apiFetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pharmacy_name: document.getElementById('set-name').value, currency: document.getElementById('set-currency').value }) }); if (res.ok) { await showAlert("تم بنجاح", "تم التحديث.", "success"); loadSettings(); } } catch (err) { showAlert("خطأ", "تعذر التحديث", "error"); } });
 document.getElementById('change-password-form')?.addEventListener('submit', async (e) => { e.preventDefault(); const oldPass = document.getElementById('old-password').value; const newPass = document.getElementById('new-password').value; try { const res = await apiFetch(`${API_URL}/users/me/password`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old_password: oldPass, new_password: newPass }) }); const data = await res.json(); if (res.ok) { await showAlert("تم بنجاح", "تم تغيير كلمة المرور.", "success"); document.getElementById('change-password-form').reset(); } else { showAlert("خطأ", data.detail || "حدث خطأ", "error"); } } catch (err) { showAlert("خطأ", "تعذر الاتصال", "error"); } });
-async function loadDashboard() { try { const res = await apiFetch(`${API_URL}/stats`); const data = await res.json(); document.getElementById('stat-revenue').innerText = `${formatCurrency(data.today_revenue)} SDG`; document.getElementById('stat-count').innerText = `${data.today_sales_count} فاتورة`; document.getElementById('stat-profit').innerText = `${formatCurrency(data.today_profit)} SDG`; } catch (err) { console.log("Offline Dashboard"); } }
 
-async function printZReport() {
-    try {
-        const res = await apiFetch(`${API_URL}/z-report`);
-        const data = await res.json();
-        document.getElementById('z-report-date').innerText = `التاريخ: ${data.date}`;
-        document.getElementById('z-report-count').innerText = data.total_invoices;
-        document.getElementById('z-report-sales').innerText = `${formatCurrency(data.total_sales)} SDG`;
-        document.getElementById('z-report-profit').innerText = `${formatCurrency(data.total_profit)} SDG`;
-        setTimeout(() => window.print(), 500);
-    } catch (err) { showAlert("خطأ", "تعذر جلب التقرير", "error"); }
+async function loadDashboard() { 
+    try { 
+        const res = await apiFetch(`${API_URL}/stats`); 
+        const data = await res.json(); 
+        document.getElementById('stat-revenue').innerText = `${formatCurrency(data.today_revenue)} SDG`; 
+        document.getElementById('stat-count').innerText = `${data.today_sales_count} فاتورة`; 
+        document.getElementById('stat-profit').innerText = `${formatCurrency(data.today_profit)} SDG`; 
+
+        // 1. منتهية الصلاحية
+        const expContainer = document.getElementById('expired-container');
+        const expList = document.getElementById('expired-list');
+        if (data.expired_alerts.length > 0) {
+            expContainer.classList.remove('hidden');
+            expList.innerHTML = data.expired_alerts.map(item => `<div class="flex justify-between p-2 bg-red-50 rounded-lg"><span class="font-bold text-gray-800">${item.name}</span><span class="text-red-600 font-bold text-xs">${item.expiry_date}</span></div>`).join('');
+        } else { expContainer.classList.add('hidden'); }
+
+        // 2. أوشكت على الانتهاء
+        const exsoonContainer = document.getElementById('expiring-container');
+        const exsoonList = document.getElementById('expiring-list');
+        if (data.expiring_soon_alerts.length > 0) {
+            exsoonContainer.classList.remove('hidden');
+            exsoonList.innerHTML = data.expiring_soon_alerts.map(item => `<div class="flex justify-between p-2 bg-orange-50 rounded-lg"><span class="font-bold text-gray-800">${item.name}</span><span class="text-orange-600 font-bold text-xs">${item.expiry_date}</span></div>`).join('');
+        } else { exsoonContainer.classList.add('hidden'); }
+
+        // 3. نقص المخزون
+        const lowContainer = document.getElementById('lowstock-container');
+        const lowList = document.getElementById('lowstock-list');
+        if (data.low_stock_alerts.length > 0) {
+            lowContainer.classList.remove('hidden');
+            lowList.innerHTML = data.low_stock_alerts.map(item => `<div class="flex justify-between p-2 bg-yellow-50 rounded-lg"><span class="font-bold text-gray-800">${item.name}</span><span class="text-yellow-700 font-bold text-xs">متبقي: ${item.stock_quantity}</span></div>`).join('');
+        } else { lowContainer.classList.add('hidden'); }
+
+    } catch (err) { console.log("Offline Dashboard"); } 
 }
+
 
 // Suppliers & Medicines
 async function loadSuppliersList() { try { const res = await apiFetch(`${API_URL}/suppliers`); const suppliers = await res.json(); const list = document.getElementById('suppliers-list'); if(suppliers.length === 0) { list.innerHTML = '<p class="text-gray-500 text-center">لا يوجد موردين.</p>'; return; } list.innerHTML = suppliers.map(s => `<div class="flex justify-between items-center p-3 border-b border-gray-100"><div><p class="font-bold text-primary">${s.name}</p><p class="text-xs text-gray-500">${s.phone || 'لا يوجد هاتف'}</p></div></div>`).join(''); } catch (err) { console.error(err); } }

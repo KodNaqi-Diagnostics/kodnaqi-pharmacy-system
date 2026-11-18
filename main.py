@@ -268,6 +268,7 @@ def create_purchase(purchase: PurchaseIn, admin_user: dict = Depends(check_admin
             return {"status": "success", "purchase_id": purchase_id}
 
 # --- Stats & Z-Report ---
+
 @app.get("/api/stats")
 def get_stats(admin_user: dict = Depends(check_admin)):
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -276,44 +277,27 @@ def get_stats(admin_user: dict = Depends(check_admin)):
             today = cur.fetchone()
             cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
             profit = cur.fetchone()
-            cur.execute("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity <= 10")
+            
+            # 1. نقص المخزون (أقل من 10)
+            cur.execute("SELECT id, name, stock_quantity FROM medicines WHERE stock_quantity <= 10 ORDER BY stock_quantity ASC")
             low_stock = cur.fetchall()
-            return {"today_sales_count": today["count"] or 0, "today_revenue": today["total"] or 0, "today_profit": profit["total_profit"] or 0, "low_stock_alerts": [dict(r) for r in low_stock], "expiring_soon_alerts": [], "expired_alerts": []}
+            
+            # 2. أوشكت على الانتهاء (خلال 30 يوم)
+            cur.execute("SELECT id, name, expiry_date FROM medicines WHERE expiry_date IS NOT NULL AND expiry_date != '' AND expiry_date::date <= CURRENT_DATE + INTERVAL '30 days' AND expiry_date::date >= CURRENT_DATE ORDER BY expiry_date ASC")
+            expiring = cur.fetchall()
+            
+            # 3. منتهية الصلاحية (اليوم وما قبله)
+            cur.execute("SELECT id, name, expiry_date FROM medicines WHERE expiry_date IS NOT NULL AND expiry_date != '' AND expiry_date::date < CURRENT_DATE ORDER BY expiry_date ASC")
+            expired = cur.fetchall()
 
-@app.get("/api/z-report")
-def get_z_report(user: dict = Depends(get_current_user)):
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT COUNT(id) as count, SUM(total_amount) as total FROM sales WHERE sale_date::date = CURRENT_DATE")
-            today_sales = cur.fetchone()
-            cur.execute("SELECT SUM((si.unit_price - m.cost) * si.quantity) as total_profit FROM sale_items si JOIN sales s ON si.sale_id = s.id JOIN medicines m ON si.medicine_id = m.id WHERE s.sale_date::date = CURRENT_DATE")
-            profit = cur.fetchone()
             return {
-                "date": str(datetime.now().date()),
-                "total_sales": today_sales["total"] or 0,
-                "total_invoices": today_sales["count"] or 0,
-                "total_profit": profit["total_profit"] or 0
+                "today_sales_count": today["count"] or 0, 
+                "today_revenue": today["total"] or 0, 
+                "today_profit": profit["total_profit"] or 0, 
+                "low_stock_alerts": [dict(r) for r in low_stock], 
+                "expiring_soon_alerts": [dict(r) for r in expiring], 
+                "expired_alerts": [dict(r) for r in expired]
             }
-
-@app.get("/api/settings")
-def get_settings(user: dict = Depends(get_current_user)):
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM settings WHERE id=1")
-            return dict(cur.fetchone())
-
-@app.put("/api/settings")
-def update_settings(data: SettingsIn, admin_user: dict = Depends(check_admin)):
-    updates, values = [], []
-    if data.pharmacy_name: updates.append("pharmacy_name = %s"); values.append(data.pharmacy_name)
-    if data.currency: updates.append("currency = %s"); values.append(data.currency)
-    if not updates: return {"status": "no changes"}
-    updates.append("updated_at = %s"); values.append(now_iso()); values.append(1)
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute(f"UPDATE settings SET {', '.join(updates)} WHERE id = %s RETURNING *", tuple(values))
-            conn.commit()
-            return dict(cur.fetchone())
 
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
