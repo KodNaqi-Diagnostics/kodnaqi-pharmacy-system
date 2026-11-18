@@ -108,28 +108,69 @@ function showApp() {
 }
 
 function applyRoleUI() {
-    // إخفاء عناصر المدير عن الكاشير
-    const adminOnlyButtons = ['btn-users'];
-    adminOnlyButtons.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (isAdmin()) {
-            el.classList.remove('hidden');
-            el.style.display = '';
-        } else {
-            el.classList.add('hidden');
-            el.style.display = 'none';
+    const admin = isAdmin();
+
+    // الموظفين: مدير فقط
+    setNavVisible('btn-users', admin);
+
+    // باقي القوائم متاحة للجميع
+    ['btn-dashboard', 'btn-pos', 'btn-inventory', 'btn-history', 'btn-purchases', 'btn-suppliers', 'btn-settings']
+        .forEach(id => setNavVisible(id, true));
+
+    // النسخ الاحتياطي: مدير فقط
+    document.querySelectorAll('[onclick*="downloadBackup"]').forEach(btn => {
+        btn.style.display = admin ? '' : 'none';
+        const card = btn.closest('.bg-card');
+        if (card && (card.innerText.includes('النسخ الاحتياطي') || card.innerText.includes('تصدير'))) {
+            card.style.display = admin ? '' : 'none';
         }
     });
 
-    // إخفاء أزرار النسخ الاحتياطي عن الكاشير إن وجدت
-    document.querySelectorAll('[onclick*="downloadBackup"]').forEach(btn => {
-        if (!isAdmin()) {
-            btn.style.display = 'none';
-        } else {
-            btn.style.display = '';
-        }
-    });
+    // إعدادات اسم الصيدلية والعملة: مدير فقط
+    const settingsForm = document.getElementById('settings-form');
+    if (settingsForm) {
+        const parentCard = settingsForm.closest('.bg-card');
+        if (parentCard) parentCard.style.display = admin ? '' : 'none';
+        else settingsForm.style.display = admin ? '' : 'none';
+    }
+
+    // شارة الدور
+    updateRoleBadge();
+
+    // توضيح قائمة الدور عند إضافة موظف
+    const roleSelect = document.getElementById('new-role');
+    if (roleSelect) {
+        roleSelect.innerHTML = `
+            <option value="cashier">كاشير — بيع ومخزون</option>
+            <option value="admin">مدير — صلاحيات كاملة</option>
+        `;
+    }
+}
+
+function setNavVisible(btnId, visible) {
+    const el = document.getElementById(btnId);
+    if (!el) return;
+    el.style.display = visible ? '' : 'none';
+    if (visible) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+}
+
+function updateRoleBadge() {
+    document.getElementById('role-badge')?.remove();
+    const titleEl = document.getElementById('current-tab-title');
+    if (!titleEl) return;
+
+    const badge = document.createElement('span');
+    badge.id = 'role-badge';
+    badge.className = isAdmin()
+        ? 'text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold mr-2'
+        : 'text-[10px] bg-white/30 text-white px-2 py-0.5 rounded-full font-bold mr-2';
+    badge.innerText = isAdmin() ? 'مدير' : 'كاشير';
+    titleEl.parentElement?.insertBefore(badge, titleEl);
+}
+
+function roleLabel(role) {
+    return role === 'admin' ? 'مدير' : 'كاشير';
 }
 
 function toggleAuthMode() {
@@ -346,6 +387,12 @@ function showPrompt(title, message, defaultValue) {
 // Tabs
 // ============================================================
 function switchTab(tabId) {
+    // منع الكاشير من دخول شاشات المدير
+    if (tabId === 'users' && !isAdmin()) {
+        showAlert("تنبيه", "إدارة الموظفين متاحة للمدير فقط", "error");
+        tabId = 'dashboard';
+    }
+
     ['dashboard', 'pos', 'inventory', 'history', 'purchases', 'suppliers', 'users', 'settings'].forEach(id => {
         const view = document.getElementById(`view-${id}`);
         const btn = document.getElementById(`btn-${id}`);
@@ -371,6 +418,9 @@ function switchTab(tabId) {
     };
     const titleEl = document.getElementById('current-tab-title');
     if (titleEl) titleEl.innerText = titles[tabId] || '';
+
+    // تحديث شارة الدور مع العنوان
+    updateRoleBadge();
 
     if (tabId === 'dashboard') loadDashboard();
     if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); }
@@ -548,7 +598,12 @@ async function loadUsers() {
     if (!list) return;
 
     if (!isAdmin()) {
-        list.innerHTML = '<p class="text-gray-400 text-center py-6">هذه الصفحة متاحة للمدير فقط</p>';
+        list.innerHTML = `
+            <div class="text-center py-8">
+                <p class="text-4xl mb-2">🔒</p>
+                <p class="text-gray-500 font-bold">هذه الصفحة متاحة للمدير فقط</p>
+                <p class="text-xs text-gray-400 mt-1">يمكنك إدارة المبيعات والمخزون من القوائم الأخرى</p>
+            </div>`;
         return;
     }
 
@@ -561,19 +616,24 @@ async function loadUsers() {
         const users = await res.json();
 
         if (!users || users.length === 0) {
-            list.innerHTML = '<p class="text-gray-400 text-center py-6">لا يوجد موظفون بعد</p>';
+            list.innerHTML = '<p class="text-gray-400 text-center py-6">لا يوجد موظفون بعد — أضف أول موظف من النموذج أعلاه</p>';
             return;
         }
 
-        list.innerHTML = users.map(u => `
+        list.innerHTML = users.map(u => {
+            const isAdm = u.role === 'admin';
+            const badge = isAdm
+                ? '<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">مدير</span>'
+                : '<span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">كاشير</span>';
+            return `
             <div class="flex justify-between items-center p-3 border-b border-gray-100">
                 <div>
                     <p class="font-bold text-primary">${u.username}</p>
-                    <p class="text-xs text-gray-500">${u.role === 'admin' ? 'مدير' : 'كاشير'}</p>
+                    <div class="mt-1">${badge}</div>
                 </div>
-                ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="bg-red-50 text-red-600 p-2 rounded-lg">🗑️</button>` : ''}
-            </div>
-        `).join('');
+                ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="bg-red-50 text-red-600 p-2 rounded-lg" title="حذف">🗑️</button>` : '<span class="text-xs text-gray-400">أساسي</span>'}
+            </div>`;
+        }).join('');
     } catch (err) {
         list.innerHTML = '<p class="text-gray-400 text-center py-6">تعذر تحميل الموظفين</p>';
     }
@@ -592,8 +652,16 @@ document.getElementById('add-user-form')?.addEventListener('submit', async (e) =
             body: JSON.stringify({ username, password, role })
         });
         if (res.ok) {
-            await showAlert("تم", "تم إضافة الموظف.", "success");
+            await showAlert("تم", `تم إضافة الموظف كـ <b>${roleLabel(role)}</b> بنجاح.`, "success");
             document.getElementById('add-user-form')?.reset();
+            // إعادة توضيح خيارات الدور
+            const roleSelect = document.getElementById('new-role');
+            if (roleSelect) {
+                roleSelect.innerHTML = `
+                    <option value="cashier">كاشير — بيع ومخزون</option>
+                    <option value="admin">مدير — صلاحيات كاملة</option>
+                `;
+            }
             loadUsers();
         } else {
             const data = await res.json().catch(() => ({}));
