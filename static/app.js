@@ -1,5 +1,6 @@
 // ============================================================
-// KodNaqi Pharmacy - Complete Fixed app.js
+// KodNaqi Pharmacy - Improved & Hardened app.js
+// Changes: Offline stock deduction + Stock validation + Dynamic currency + Public register disabled
 // ============================================================
 
 // --- Config ---
@@ -14,8 +15,19 @@ let currentUser = {
     role: localStorage.getItem('kodnaqi_role') || 'cashier'
 };
 
+// العملة الحالية (تُحمّل من الإعدادات)
+let currentCurrency = localStorage.getItem('kodnaqi_currency') || 'SDG';
+
 function isAdmin() {
     return currentUser.role === 'admin';
+}
+
+function getCurrency() {
+    return currentCurrency || 'SDG';
+}
+
+function money(num) {
+    return formatCurrency(num) + ' ' + getCurrency();
 }
 
 // --- Web Audio API for Vault Sound ---
@@ -185,29 +197,9 @@ function roleLabel(role) {
 }
 
 function toggleAuthMode() {
-    const loginBox = document.getElementById('login-form-box');
-    const regBox = document.getElementById('register-form-box');
-    const btn = document.getElementById('toggle-auth-btn');
-    const title = document.getElementById('auth-title');
-    const subtitle = document.getElementById('auth-subtitle');
-
-    if (!loginBox || !regBox) return;
-
-    if (loginBox.classList.contains('hidden')) {
-        // العودة لوضع تسجيل الدخول
-        loginBox.classList.remove('hidden');
-        regBox.classList.add('hidden');
-        if (btn) btn.innerText = "ليس لديك حساب؟ إنشاء حساب جديد";
-        if (title) title.innerText = "مرحباً بك مجدداً";
-        if (subtitle) subtitle.innerText = "سجل الدخول لإدارة صيدليتك";
-    } else {
-        // وضع التسجيل
-        loginBox.classList.add('hidden');
-        regBox.classList.remove('hidden');
-        if (btn) btn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
-        if (title) title.innerText = "إنشاء حساب جديد";
-        if (subtitle) subtitle.innerText = "أنشئ حساباً لبدء استخدام النظام";
-    }
+    // تم إغلاق التسجيل العام لأسباب أمنية.
+    // إضافة الموظفين تتم فقط من داخل النظام بواسطة المدير.
+    showAlert("تنبيه", "إنشاء الحسابات متاح للمدير فقط من داخل النظام (قائمة الموظفين).", "error");
 }
 
 async function handleLogin() {
@@ -435,12 +427,22 @@ async function loadSettings() {
         const data = await res.json();
         const nameEl = document.getElementById('pharmacy-name');
         if (nameEl) nameEl.innerText = data.pharmacy_name || 'KodNaqi Pharmacy';
+        
+        // تحديث العملة عالمياً
+        if (data.currency) {
+            currentCurrency = data.currency;
+            localStorage.setItem('kodnaqi_currency', data.currency);
+        }
         await localforage.setItem('kodnaqi_settings', data);
     } catch (err) {
         const localData = await localforage.getItem('kodnaqi_settings');
         if (localData) {
             const nameEl = document.getElementById('pharmacy-name');
             if (nameEl) nameEl.innerText = localData.pharmacy_name || 'KodNaqi Pharmacy';
+            if (localData.currency) {
+                currentCurrency = localData.currency;
+                localStorage.setItem('kodnaqi_currency', localData.currency);
+            }
         }
     }
 }
@@ -508,9 +510,9 @@ async function loadDashboard() {
         const res = await apiFetch(`${API_URL}/stats`);
         if (res.ok) {
             const data = await res.json();
-            if (revEl) revEl.innerText = `${formatCurrency(data.today_revenue || 0)} SDG`;
+            if (revEl) revEl.innerText = `${money(data.today_revenue || 0)}`;
             if (countEl) countEl.innerText = `${data.today_sales_count || 0} فاتورة`;
-            if (profitEl) profitEl.innerText = `${formatCurrency(data.today_profit || 0)} SDG`;
+            if (profitEl) profitEl.innerText = `${money(data.today_profit || 0)}`;
 
             renderAlerts(data);
             return;
@@ -525,18 +527,18 @@ async function loadDashboard() {
         const todaySales = (sales || []).filter(s => (s.sale_date || '').startsWith(today));
         const revenue = todaySales.reduce((sum, s) => sum + (s.total_amount || s.paid_amount || 0), 0);
 
-        if (revEl) revEl.innerText = `${formatCurrency(revenue)} SDG`;
+        if (revEl) revEl.innerText = `${money(revenue)}`;
         if (countEl) countEl.innerText = `${todaySales.length} فاتورة`;
-        if (profitEl) profitEl.innerText = isAdmin() ? `${formatCurrency(0)} SDG` : '—';
+        if (profitEl) profitEl.innerText = isAdmin() ? `${money(0)}` : '—';
 
         // إخفاء تنبيهات المدير عن الكاشير إن لم تتوفر
         ['expired-container', 'expiring-container', 'lowstock-container'].forEach(id => {
             document.getElementById(id)?.classList.add('hidden');
         });
     } catch (err) {
-        if (revEl) revEl.innerText = '0 SDG';
+        if (revEl) revEl.innerText = money(0);
         if (countEl) countEl.innerText = '0 فاتورة';
-        if (profitEl) profitEl.innerText = '0 SDG';
+        if (profitEl) profitEl.innerText = money(0);
     }
 }
 
@@ -766,7 +768,7 @@ async function loadMedicines() {
                             <p class="font-bold text-gray-800 text-sm">${med.name}</p>
                         </div>
                         <div class="text-left">
-                            <p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p>
+                            <p class="font-bold text-primary">${money(med.price)}</p>
                             <p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
                         </div>
                     </div>
@@ -787,7 +789,7 @@ async function loadMedicines() {
                             <p class="text-xs text-gray-500">${med.category || ''} | ${med.supplier_name || 'بدون مورد'}</p>
                         </div>
                         <div class="text-left mr-3">
-                            <p class="font-bold text-sm">${formatCurrency(med.price)} SDG</p>
+                            <p class="font-bold text-sm">${money(med.price)}</p>
                             <p class="text-xs text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
                         </div>
                         <div class="flex gap-2">
@@ -810,7 +812,7 @@ async function loadMedicines() {
                      class="cursor-pointer flex justify-between items-center p-3 border-b border-gray-100 hover:bg-primary/5 transition rounded-xl">
                     <div><p class="font-bold text-gray-800 text-sm">${med.name}</p></div>
                     <div class="text-left">
-                        <p class="font-bold text-primary">${formatCurrency(med.price)} SDG</p>
+                        <p class="font-bold text-primary">${money(med.price)}</p>
                         <p class="text-[10px] text-gray-400">المخزون: ${med.stock_quantity ?? 0}</p>
                     </div>
                 </div>
@@ -915,10 +917,32 @@ function filterInventory() {
 // ============================================================
 // POS / Cart
 // ============================================================
-function addToCart(id, name, price) {
+// ============================================================
+// CART + STOCK CONTROL (Offline-aware)
+// ============================================================
+
+async function getLocalMedicines() {
+    return await localforage.getItem('kodnaqi_medicines') || [];
+}
+
+async function getAvailableStock(medicineId) {
+    const meds = await getLocalMedicines();
+    const med = meds.find(m => m.id == medicineId);
+    return med ? (med.stock_quantity || 0) : 0;
+}
+
+async function addToCart(id, name, price) {
+    const available = await getAvailableStock(id);
     const existing = cart.find(item => item.medicine_id === id);
+    const currentQty = existing ? existing.quantity : 0;
+
+    if (currentQty + 1 > available) {
+        return showAlert("تنبيه", `الكمية المتوفرة من "${name}" هي ${available} فقط`, "error");
+    }
+
     if (existing) existing.quantity += 1;
     else cart.push({ medicine_id: id, name: name, unit_price: price, quantity: 1 });
+    
     playVaultSound('tick');
     renderCart();
 }
@@ -928,10 +952,26 @@ function removeFromCart(index) {
     renderCart();
 }
 
-function updateQuantity(index, change) {
+async function updateQuantity(index, change) {
     if (!cart[index]) return;
-    cart[index].quantity += change;
-    if (cart[index].quantity <= 0) cart.splice(index, 1);
+    
+    const item = cart[index];
+    const newQty = item.quantity + change;
+
+    if (newQty <= 0) {
+        cart.splice(index, 1);
+        renderCart();
+        return;
+    }
+
+    if (change > 0) {
+        const available = await getAvailableStock(item.medicine_id);
+        if (newQty > available) {
+            return showAlert("تنبيه", `الكمية المتوفرة من "${item.name}" هي ${available} فقط`, "error");
+        }
+    }
+
+    item.quantity = newQty;
     renderCart();
 }
 
@@ -942,7 +982,7 @@ function renderCart() {
 
     if (cart.length === 0) {
         cartDiv.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">الفاتورة فارغة.</p>';
-        totalEl.innerText = `0 SDG`;
+        totalEl.innerText = money(0);
         return;
     }
 
@@ -953,7 +993,7 @@ function renderCart() {
             <div class="flex justify-between items-center p-3 bg-bg rounded-xl mb-2">
                 <div class="flex-1">
                     <p class="font-bold text-sm text-primary">${item.name}</p>
-                    <p class="text-xs text-gray-500">${item.unit_price} SDG</p>
+                    <p class="text-xs text-gray-500">${formatCurrency(item.unit_price)} ${getCurrency()}</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <div class="flex items-center bg-white rounded-lg border border-gray-100">
@@ -961,20 +1001,28 @@ function renderCart() {
                         <span class="px-2 font-bold text-sm">${item.quantity}</span>
                         <button onclick="updateQuantity(${index}, -1)" class="px-3 py-1 text-red-500 font-bold">-</button>
                     </div>
-                    <span class="font-bold text-primary w-20 text-left">${formatCurrency(item.unit_price * item.quantity)} SDG</span>
+                    <span class="font-bold text-primary w-20 text-left">${money(item.unit_price * item.quantity)}</span>
                     <button onclick="removeFromCart(${index})" class="text-red-500 bg-red-50 p-2 rounded-lg">✖</button>
                 </div>
             </div>
         `;
     }).join('');
-    totalEl.innerText = `${formatCurrency(total)} SDG`;
+    totalEl.innerText = money(total);
 }
 
 async function checkout() {
     if (cart.length === 0) return showAlert("تنبيه", "الفاتورة فارغة.", "error");
 
+    // التحقق النهائي من المخزون قبل إتمام البيع
+    for (const item of cart) {
+        const available = await getAvailableStock(item.medicine_id);
+        if (item.quantity > available) {
+            return showAlert("خطأ", `الكمية المطلوبة من "${item.name}" (${item.quantity}) أكبر من المتوفر (${available})`, "error");
+        }
+    }
+
     let total = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-    const paid = await showPrompt("الدفع", `الإجمالي المطلوب: ${formatCurrency(total)} SDG`, total);
+    const paid = await showPrompt("الدفع", `الإجمالي المطلوب: ${money(total)}`, total);
     if (paid === null || paid === "") return;
 
     const paidAmount = parseFloat(paid);
@@ -990,13 +1038,14 @@ async function checkout() {
         items: cart.map(i => ({
             medicine_id: i.medicine_id,
             quantity: i.quantity,
-            unit_price: i.unit_price
+            unit_price: i.unit_price,
+            name: i.name
         })),
         invoice_number: `OFF-${localId.toString().slice(-6)}`,
         sale_date: new Date().toISOString()
     };
 
-    // حفظ محلي أولاً (Offline-first)
+    // ===== Offline-first: حفظ محلي + خصم المخزون محلياً =====
     let sales = await localforage.getItem('kodnaqi_sales') || [];
     sales.unshift(saleData);
     await localforage.setItem('kodnaqi_sales', sales);
@@ -1005,15 +1054,27 @@ async function checkout() {
     outbox.push(saleData);
     await localforage.setItem('kodnaqi_outbox', outbox);
 
+    // خصم المخزون من الكاش المحلي فوراً (مهم جداً للأوفلاين)
+    let meds = await getLocalMedicines();
+    for (const item of cart) {
+        const med = meds.find(m => m.id == item.medicine_id);
+        if (med) {
+            med.stock_quantity = Math.max(0, (med.stock_quantity || 0) - item.quantity);
+        }
+    }
+    await localforage.setItem('kodnaqi_medicines', meds);
+
     const change = paidAmount - total;
     preparePrintInvoice(saleData.invoice_number, cart, total, paidAmount, change);
 
-    let msg = `رقم الفاتورة: <b>${saleData.invoice_number}</b><br>الباقي: <b class="text-primary text-lg">${formatCurrency(change)} SDG</b>`;
+    let msg = `رقم الفاتورة: <b>${saleData.invoice_number}</b><br>الباقي: <b class="text-primary text-lg">${money(change)}</b>`;
     msg += `<br><br><button onclick="window.print()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-bold w-full">🖨️ طباعة الفاتورة</button>`;
 
     await showAlert("تمت العملية", msg, "success");
     cart = [];
     renderCart();
+    
+    // إعادة رسم القوائم بالمخزون الجديد
     loadMedicines();
     processOutbox();
 }
@@ -1045,9 +1106,9 @@ function preparePrintInvoice(invoiceNumber, items, total, paid, change) {
         `).join('');
     }
 
-    if (totalEl) totalEl.innerText = formatCurrency(total) + ' SDG';
-    if (paidEl) paidEl.innerText = formatCurrency(paid) + ' SDG';
-    if (changeEl) changeEl.innerText = formatCurrency(change) + ' SDG';
+    if (totalEl) totalEl.innerText = money(total);
+    if (paidEl) paidEl.innerText = money(paid);
+    if (changeEl) changeEl.innerText = money(change);
 
     // باركود (إن وجد JsBarcode)
     try {
@@ -1186,7 +1247,7 @@ async function loadHistory() {
                     <p class="text-xs text-gray-500">${new Date(s.sale_date || s.created_at).toLocaleString('ar-EG')}</p>
                 </div>
                 <div class="text-left">
-                    <p class="font-bold text-primary">${formatCurrency(s.total || s.paid_amount || 0)} SDG</p>
+                    <p class="font-bold text-primary">${money(s.total || s.paid_amount || 0)}</p>
                 </div>
             </div>
         `).join('');
@@ -1204,7 +1265,7 @@ async function loadHistory() {
                     <p class="text-xs text-gray-500">${new Date(s.sale_date).toLocaleString('ar-EG')}</p>
                 </div>
                 <div class="text-left">
-                    <p class="font-bold text-primary">${formatCurrency(s.paid_amount)} SDG</p>
+                    <p class="font-bold text-primary">${money(s.paid_amount)}</p>
                 </div>
             </div>
         `).join('');
@@ -1286,8 +1347,8 @@ async function printZReport() {
 
         if (dateEl) dateEl.innerText = new Date().toLocaleString('ar-EG');
         if (countEl) countEl.innerText = data.sales_count || data.today_sales_count || 0;
-        if (salesEl) salesEl.innerText = formatCurrency(data.total_sales || data.today_revenue || 0) + ' SDG';
-        if (profitEl) profitEl.innerText = formatCurrency(data.total_profit || data.today_profit || 0) + ' SDG';
+        if (salesEl) salesEl.innerText = money(data.total_sales || data.today_revenue || 0);
+        if (profitEl) profitEl.innerText = money(data.total_profit || data.today_profit || 0);
 
         // إظهار منطقة الطباعة مؤقتاً
         const zArea = document.getElementById('z-report-area');
@@ -1301,8 +1362,8 @@ async function printZReport() {
             const data = await res.json();
             document.getElementById('z-report-date').innerText = new Date().toLocaleString('ar-EG');
             document.getElementById('z-report-count').innerText = data.today_sales_count || 0;
-            document.getElementById('z-report-sales').innerText = formatCurrency(data.today_revenue || 0) + ' SDG';
-            document.getElementById('z-report-profit').innerText = formatCurrency(data.today_profit || 0) + ' SDG';
+            document.getElementById('z-report-sales').innerText = money(data.today_revenue || 0);
+            document.getElementById('z-report-profit').innerText = money(data.today_profit || 0);
             document.getElementById('z-report-area')?.classList.remove('hidden');
             window.print();
             setTimeout(() => document.getElementById('z-report-area')?.classList.add('hidden'), 500);
