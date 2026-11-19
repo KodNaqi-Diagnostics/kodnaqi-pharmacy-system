@@ -107,7 +107,24 @@ function showLoginScreen() {
 
 
 function showApp() { 
-    const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); 
+    // إخفاء شاشة البداية
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => splash.classList.add('hidden'), 400);
+    }
+
+    // إخفاء شاشة الدخول
+    const login = document.getElementById('login-screen');
+    if (login) {
+        login.classList.add('hidden');
+        login.classList.remove('flex');
+    }
+
+    const app = document.getElementById('app-content'); 
+    if (app) app.classList.remove('hidden'); 
+    
+    loadSettings(); 
     const role = localStorage.getItem('kodnaqi_role');
     const roleBadge = document.getElementById('user-role-badge');
     
@@ -1455,6 +1472,15 @@ async function initApp() {
         role: localStorage.getItem('kodnaqi_role') || 'cashier'
     };
 
+    // تأمين: إخفاء شاشة البداية بعد 8 ثواني كحد أقصى حتى لو حصل خطأ
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash && !splash.classList.contains('hidden')) {
+            splash.style.opacity = '0';
+            setTimeout(() => splash.classList.add('hidden'), 300);
+        }
+    }, 8000);
+
     const token = localStorage.getItem('kodnaqi_token');
     if (token) {
         try {
@@ -1465,6 +1491,7 @@ async function initApp() {
                 return;
             }
         } catch (e) {
+            console.warn('Token invalid or server unreachable', e);
             localStorage.removeItem('kodnaqi_token');
             localStorage.removeItem('kodnaqi_role');
             localStorage.removeItem('kodnaqi_user');
