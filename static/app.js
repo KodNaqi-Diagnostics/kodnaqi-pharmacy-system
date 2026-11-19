@@ -93,19 +93,30 @@ function showLoginScreen() {
     }
 }
 
-function showApp() {
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        splash.style.opacity = '0';
-        setTimeout(() => splash.classList.add('hidden'), 400);
+
+function showApp() { 
+    const app = document.getElementById('app-content'); if(app) app.classList.remove('hidden'); loadSettings(); 
+    const role = localStorage.getItem('kodnaqi_role');
+    const roleBadge = document.getElementById('user-role-badge');
+    
+    if (roleBadge) {
+        roleBadge.classList.remove('hidden');
+        roleBadge.innerText = role === 'admin' ? 'مدير' : 'كاشير';
+        if (role === 'admin') roleBadge.className = "text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold";
+        else roleBadge.className = "text-[10px] bg-blue-500 text-white px-2 py-1 rounded-full font-bold";
     }
-    document.getElementById('login-screen')?.classList.add('hidden');
-    document.getElementById('login-screen')?.classList.remove('flex');
-    document.getElementById('app-content')?.classList.remove('hidden');
-    applyRoleUI();
-    switchTab('dashboard');
-    loadSettings();
+
+    const adminTabs = ['dashboard', 'inventory', 'purchases', 'suppliers', 'users', 'settings'];
+    
+    if (role !== 'admin') {
+        adminTabs.forEach(id => { const el = document.getElementById(`btn-${id}`); if(el) el.style.display = 'none'; });
+        switchTab('pos');
+    } else {
+        adminTabs.forEach(id => { const el = document.getElementById(`btn-${id}`); if(el) el.style.display = 'flex'; });
+        switchTab('dashboard');
+    }
 }
+
 
 function applyRoleUI() {
     const admin = isAdmin();
