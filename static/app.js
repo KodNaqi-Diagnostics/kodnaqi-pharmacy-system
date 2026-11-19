@@ -397,51 +397,34 @@ function showPrompt(title, message, defaultValue) {
 // ============================================================
 // Tabs
 // ============================================================
-function switchTab(tabId) {
-    // منع الكاشير من دخول شاشات المدير
-    if (tabId === 'users' && !isAdmin()) {
-        showAlert("تنبيه", "إدارة الموظفين متاحة للمدير فقط", "error");
-        tabId = 'dashboard';
-    }
 
-    ['dashboard', 'pos', 'inventory', 'history', 'purchases', 'suppliers', 'users', 'settings'].forEach(id => {
-        const view = document.getElementById(`view-${id}`);
-        const btn = document.getElementById(`btn-${id}`);
-        if (view) view.classList.add('hidden');
-        if (btn) btn.className = "flex flex-col items-center p-2 text-gray-400 hover:text-primary min-w-[70px] transition-all";
-    });
-
-    const activeView = document.getElementById(`view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-${tabId}`);
-
-    if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = "flex flex-col items-center p-2 text-primary min-w-[70px] transition-all";
-
-    const titles = {
-        dashboard: 'الرئيسية',
-        pos: 'الكاشير',
-        inventory: 'المخزون',
-        history: 'السجلات',
-        purchases: 'المشتريات',
-        suppliers: 'الموردين',
-        users: 'الموظفين',
-        settings: 'الإعدادات'
-    };
-    const titleEl = document.getElementById('current-tab-title');
-    if (titleEl) titleEl.innerText = titles[tabId] || '';
-
-    // تحديث شارة الدور مع العنوان
-    updateRoleBadge();
-
-    if (tabId === 'dashboard') loadDashboard();
-    if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); }
-    if (tabId === 'history') loadHistory();
-    if (tabId === 'purchases') loadPurchasesData();
-    if (tabId === 'suppliers') loadSuppliersList();
-    if (tabId === 'users') loadUsers();
-    if (tabId === 'settings') fetchSettingsForForm();
-    if (tabId === 'pos') loadMedicines();
+function switchTab(tabId) { 
+    ['dashboard', 'pos', 'inventory', 'history', 'purchases', 'suppliers', 'users', 'settings'].forEach(id => { 
+        const view = document.getElementById(`view-${id}`); 
+        const btn = document.getElementById(`btn-${id}`); 
+        if(view) view.classList.add('hidden'); 
+        if(btn) btn.className = "flex-1 flex flex-col items-center justify-center p-2 md:p-3 text-gray-400 hover:text-primary transition-all group"; 
+    }); 
+    
+    const activeView = document.getElementById(`view-${tabId}`); 
+    const activeBtn = document.getElementById(`btn-${tabId}`); 
+    
+    if(activeView) activeView.classList.remove('hidden'); 
+    if(activeBtn) activeBtn.className = "flex-1 flex flex-col items-center justify-center p-2 md:p-3 text-primary transition-all group"; 
+    
+    const titles = { dashboard: 'الرئيسية', pos: 'الكاشير', inventory: 'المخزون', history: 'السجلات', purchases: 'المشتريات', suppliers: 'الموردين', users: 'الموظفين', settings: 'الإعدادات' }; 
+    const titleEl = document.getElementById('current-tab-title'); 
+    if(titleEl) titleEl.innerText = titles[tabId]; 
+    
+    if (tabId === 'dashboard') loadDashboard(); 
+    if (tabId === 'inventory') { loadMedicines(); loadSuppliersForDropdown(); } 
+    if (tabId === 'history') loadHistory(); 
+    if (tabId === 'purchases') { loadPurchasesData(); }
+    if (tabId === 'suppliers') loadSuppliersList(); 
+    if (tabId === 'users') loadUsers(); 
+    if (tabId === 'settings') fetchSettingsForForm(); 
 }
+
 
 // ============================================================
 // Settings & Dashboard
