@@ -1082,18 +1082,89 @@ async function checkout() {
     await localforage.setItem('kodnaqi_medicines', meds);
 
     const change = paidAmount - total;
+    
+    // تجهيز بيانات الطباعة
     preparePrintInvoice(saleData.invoice_number, cart, total, paidAmount, change);
 
-    let msg = `رقم الفاتورة: <b>${saleData.invoice_number}</b><br>الباقي: <b class="text-primary text-lg">${money(change)}</b>`;
-    msg += `<br><br><button onclick="window.print()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-bold w-full">🖨️ طباعة الفاتورة</button>`;
+    // حفظ بيانات الفاتورة مؤقتاً للطباعة لاحقاً من السجل
+    window._lastPrintedSale = {
+        invoice_number: saleData.invoice_number,
+        items: [...cart],
+        total: total,
+        paid: paidAmount,
+        change: change,
+        date: saleData.sale_date
+    };
 
-    await showAlert("تمت العملية", msg, "success");
     cart = [];
     renderCart();
-    
-    // إعادة رسم القوائم بالمخزون الجديد
     loadMedicines();
     processOutbox();
+
+    // عرض رسالة النجاح مع زر طباعة واضح
+    await showPrintSuccess(saleData.invoice_number, change);
+}
+
+async function showPrintSuccess(invoiceNumber, change) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('app-modal');
+        const content = document.getElementById('modal-content');
+        const iconDiv = document.getElementById('modal-icon');
+        const input = document.getElementById('modal-input');
+        const cancelBtn = document.getElementById('modal-cancel');
+        const confirmBtn = document.getElementById('modal-confirm');
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-message');
+
+        if (!modal) {
+            if (confirm("تمت العملية\nرقم الفاتورة: " + invoiceNumber + "\nهل تريد الطباعة؟")) {
+                window.print();
+            }
+            return resolve(true);
+        }
+
+        input?.classList.add('hidden');
+        cancelBtn?.classList.remove('hidden');
+        cancelBtn.innerText = 'إغلاق';
+        confirmBtn.innerText = '🖨️ طباعة الفاتورة';
+        confirmBtn.className = "flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg";
+
+        if (iconDiv) {
+            iconDiv.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-4";
+            iconDiv.innerHTML = '<span class="text-3xl text-primary">✅</span>';
+        }
+
+        if (titleEl) titleEl.innerText = "تمت العملية بنجاح";
+        if (msgEl) {
+            msgEl.innerHTML = `رقم الفاتورة: <b>${invoiceNumber}</b><br>الباقي: <b class="text-primary text-lg">${money(change)}</b>`;
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => content?.classList.remove('scale-95'), 10);
+
+        // زر الطباعة
+        confirmBtn.onclick = () => {
+            content?.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                // تأخير بسيط ثم طباعة (مهم للموبايل)
+                setTimeout(() => window.print(), 300);
+            }, 200);
+            resolve(true);
+        };
+
+        // زر الإغلاق
+        cancelBtn.onclick = () => {
+            content?.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+            resolve(true);
+        };
+    });
 }
 
 function preparePrintInvoice(invoiceNumber, items, total, paid, change) {
@@ -1138,6 +1209,75 @@ function preparePrintInvoice(invoiceNumber, items, total, paid, change) {
             });
         }
     } catch (e) {}
+}
+
+// طباعة فاتورة من السجل
+function printHistorySale(invoiceNumber, total, paid, dateStr, itemsJsonEncoded) {
+    try {
+        const items = JSON.parse(decodeURIComponent(itemsJsonEncoded || '[]'));
+        
+        // تحويل البيانات لتناسب preparePrintInvoice
+        const mappedItems = items.map(it => ({
+            name: it.name || it.medicine_name || ('صنف #' + (it.medicine_id || '')),
+            quantity: it.quantity || 1,
+            unit_price: it.unit_price || it.price || 0
+        }));
+
+        const change = (paid || total) - total;
+
+        // تعبئة منطقة الطباعة
+        const nameEl = document.getElementById('print-pharmacy-name');
+        const dateEl = document.getElementById('print-date');
+        const invEl = document.getElementById('print-inv-num');
+        const itemsEl = document.getElementById('print-items');
+        const totalEl = document.getElementById('print-total');
+        const paidEl = document.getElementById('print-paid');
+        const changeEl = document.getElementById('print-change');
+        const invText = document.getElementById('print-inv-text');
+
+        if (nameEl) nameEl.innerText = document.getElementById('pharmacy-name')?.innerText || 'KodNaqi Pharmacy';
+        if (dateEl) dateEl.innerText = dateStr || new Date().toLocaleString('ar-EG');
+        if (invEl) invEl.innerText = invoiceNumber;
+        if (invText) invText.innerText = invoiceNumber;
+
+        if (itemsEl) {
+            if (mappedItems.length > 0) {
+                itemsEl.innerHTML = mappedItems.map(item => `
+                    <tr>
+                        <td class="py-1">${item.name}</td>
+                        <td class="py-1 text-center">${item.quantity}</td>
+                        <td class="py-1 text-left">${formatCurrency(item.unit_price)}</td>
+                        <td class="py-1 text-left">${formatCurrency(item.unit_price * item.quantity)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                itemsEl.innerHTML = '<tr><td colspan="4" class="py-2 text-center text-gray-500">لا توجد تفاصيل أصناف</td></tr>';
+            }
+        }
+
+        if (totalEl) totalEl.innerText = money(total);
+        if (paidEl) paidEl.innerText = money(paid || total);
+        if (changeEl) changeEl.innerText = money(Math.max(0, change));
+
+        // باركود
+        try {
+            if (window.JsBarcode && document.getElementById('print-barcode')) {
+                JsBarcode("#print-barcode", invoiceNumber, {
+                    format: "CODE128",
+                    width: 1.5,
+                    height: 40,
+                    displayValue: false
+                });
+            }
+        } catch (e) {}
+
+        // طباعة
+        setTimeout(() => window.print(), 250);
+
+    } catch (err) {
+        console.error(err);
+        showAlert("خطأ", "تعذر تحضير الفاتورة للطباعة", "error");
+    }
 }
 
 // ============================================================
@@ -1257,17 +1397,27 @@ async function loadHistory() {
             return;
         }
 
-        list.innerHTML = sales.map(s => `
-            <div class="flex justify-between items-center p-3 border-b border-gray-100">
-                <div>
-                    <p class="font-bold text-primary text-sm">${s.invoice_number || ('#' + s.id)}</p>
-                    <p class="text-xs text-gray-500">${new Date(s.sale_date || s.created_at).toLocaleString('ar-EG')}</p>
+        list.innerHTML = sales.map(s => {
+            const inv = s.invoice_number || ('#' + s.id);
+            const total = s.total_amount || s.total || s.paid_amount || 0;
+            const dateStr = new Date(s.sale_date || s.created_at).toLocaleString('ar-EG');
+            // نحفظ بيانات الفاتورة في data attributes للطباعة
+            const itemsJson = encodeURIComponent(JSON.stringify(s.items || []));
+            return `
+            <div class="flex justify-between items-center p-3 border-b border-gray-100 gap-2">
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-primary text-sm truncate">${inv}</p>
+                    <p class="text-xs text-gray-500">${dateStr}</p>
                 </div>
-                <div class="text-left">
-                    <p class="font-bold text-primary">${money(s.total || s.paid_amount || 0)}</p>
+                <div class="text-left flex items-center gap-2">
+                    <p class="font-bold text-primary whitespace-nowrap">${money(total)}</p>
+                    <button onclick="printHistorySale('${inv}', ${total}, ${s.paid_amount || total}, '${dateStr}', '${itemsJson}')" 
+                            class="bg-blue-50 text-blue-600 p-2 rounded-lg text-sm" title="طباعة">
+                        🖨️
+                    </button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     } catch (err) {
         // Offline
         const localSales = await localforage.getItem('kodnaqi_sales') || [];
@@ -1275,17 +1425,26 @@ async function loadHistory() {
             list.innerHTML = '<p class="text-gray-400 text-center py-6">لا توجد فواتير (أوفلاين)</p>';
             return;
         }
-        list.innerHTML = localSales.map(s => `
-            <div class="flex justify-between items-center p-3 border-b border-gray-100">
-                <div>
-                    <p class="font-bold text-primary text-sm">${s.invoice_number} <span class="text-orange-500 text-xs">(معلق)</span></p>
-                    <p class="text-xs text-gray-500">${new Date(s.sale_date).toLocaleString('ar-EG')}</p>
+        list.innerHTML = localSales.map(s => {
+            const inv = s.invoice_number;
+            const total = s.paid_amount || 0;
+            const dateStr = new Date(s.sale_date).toLocaleString('ar-EG');
+            const itemsJson = encodeURIComponent(JSON.stringify(s.items || []));
+            return `
+            <div class="flex justify-between items-center p-3 border-b border-gray-100 gap-2">
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-primary text-sm truncate">${inv} <span class="text-orange-500 text-xs">(معلق)</span></p>
+                    <p class="text-xs text-gray-500">${dateStr}</p>
                 </div>
-                <div class="text-left">
-                    <p class="font-bold text-primary">${money(s.paid_amount)}</p>
+                <div class="text-left flex items-center gap-2">
+                    <p class="font-bold text-primary whitespace-nowrap">${money(total)}</p>
+                    <button onclick="printHistorySale('${inv}', ${total}, ${s.paid_amount || total}, '${dateStr}', '${itemsJson}')" 
+                            class="bg-blue-50 text-blue-600 p-2 rounded-lg text-sm" title="طباعة">
+                        🖨️
+                    </button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 }
 
