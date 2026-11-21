@@ -42,7 +42,11 @@ def init_db():
 
             cur.execute("SELECT COUNT(*) FROM users")
             if cur.fetchone()[0] == 0: 
-                cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", pwd_context.hash("admin"), "admin"))
+                _pw = os.environ.get("ADMIN_INITIAL_PASSWORD")
+                if _pw:
+                    cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", pwd_context.hash(_pw), "admin"))
+                else:
+                    print("WARNING: ADMIN_INITIAL_PASSWORD not set, no admin created", flush=True)
             cur.execute("INSERT INTO settings (id, pharmacy_name, currency, updated_at) VALUES (1, 'KodNaqi Pharmacy', 'SDG', %s) ON CONFLICT (id) DO NOTHING", (now_iso(),))
             conn.commit()
 init_db()
