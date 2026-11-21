@@ -14,7 +14,9 @@ from jose import JWTError, jwt
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL: raise Exception("DATABASE_URL missing!")
 
-SECRET_KEY = "kodnaqi_secret_super_key_2026"
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY must be set (32+ chars)")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 
 
