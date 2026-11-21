@@ -124,7 +124,7 @@ def login(data: LoginIn):
             raise HTTPException(401, "بيانات الدخول غير صحيحة")
 
 @app.post("/api/register")
-def register(data: RegisterIn):
+def register(data: RegisterIn, admin_user: dict = Depends(check_admin)):
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
